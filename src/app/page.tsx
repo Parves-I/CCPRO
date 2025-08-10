@@ -16,6 +16,7 @@ import { CalendarControls } from '@/components/CalendarControls';
 import { CalendarGrid } from '@/components/CalendarGrid';
 import { useProject } from '@/context/ProjectContext';
 import { FilterControls } from '@/components/FilterControls';
+import { Card } from '@/components/ui/card';
 
 export default function Home() {
   const { loading, activeProject, activeProjectData, initializing } = useProject();
@@ -32,11 +33,11 @@ export default function Home() {
 
     if (!activeProject) {
       return (
-        <div className="flex h-full flex-col items-center justify-center text-center">
-          <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
+        <div className="flex h-full flex-col items-center justify-center text-center p-4">
+          <div className="flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-6 shadow-md">
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-8 w-8 text-primary"
+              className="h-10 w-10 text-primary"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -49,9 +50,9 @@ export default function Home() {
               />
             </svg>
           </div>
-          <h3 className="text-xl font-semibold text-foreground">Welcome to CollabCal</h3>
-          <p className="mt-1 text-muted-foreground max-w-sm">
-            Create a new project or select an existing one from the sidebar to get started.
+          <h1 className="text-4xl font-bold text-foreground tracking-tight">Welcome to CollabCal</h1>
+          <p className="mt-2 text-lg text-muted-foreground max-w-lg">
+            Your all-in-one content planning and workflow solution. Create a new project or select an existing one to get started.
           </p>
         </div>
       );
@@ -59,7 +60,7 @@ export default function Home() {
 
     return (
       <div className="flex flex-col h-full p-4 sm:p-6 lg:p-8">
-        <header className="mb-6 flex items-center justify-between">
+        <header className="mb-6 flex items-center justify-between flex-wrap gap-4">
           <div className='flex items-center gap-4'>
              <div className="md:hidden">
                 <SidebarTrigger />
@@ -68,30 +69,30 @@ export default function Home() {
           </div>
           {loading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
         </header>
-        <div className="bg-card p-4 rounded-xl shadow-sm mb-6">
+        <Card className="p-4 mb-6 shadow-sm">
           <CalendarControls />
           <FilterControls />
-        </div>
-        <div className="flex-grow bg-card p-4 sm:p-6 rounded-xl shadow-sm overflow-auto">
+        </Card>
+        <Card className="flex-grow p-4 sm:p-6 shadow-sm overflow-auto">
           {activeProjectData?.startDate && activeProjectData?.endDate ? (
             <CalendarGrid />
           ) : (
             <div className="text-center py-20 h-full flex flex-col items-center justify-center">
-              <CalendarIcon className="mx-auto h-12 w-12 text-muted-foreground/50" strokeWidth="1" />
-              <h3 className="mt-2 text-lg font-medium text-foreground">Your calendar awaits</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Select a date range to begin planning your content.
+              <CalendarIcon className="mx-auto h-16 w-16 text-muted-foreground/30" strokeWidth="1" />
+              <h3 className="mt-4 text-xl font-medium text-foreground">Your Calendar Awaits</h3>
+              <p className="mt-1 text-md text-muted-foreground">
+                Select a start and end date to begin planning your content.
               </p>
             </div>
           )}
-        </div>
+        </Card>
       </div>
     );
   };
   
   return (
     <SidebarProvider>
-      <Sidebar side="left" collapsible="offcanvas">
+      <Sidebar side="left" collapsible="icon">
         <SidebarHeader>
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-500">

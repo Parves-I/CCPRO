@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Filter, X } from 'lucide-react';
+import { Filter, X, ChevronDown } from 'lucide-react';
 import { Badge } from './ui/badge';
 
 export function FilterControls() {
@@ -40,55 +40,84 @@ export function FilterControls() {
 
   const activeFilterCount = filters.status.length + filters.types.length + filters.platforms.length;
 
+  const renderFilterCount = (filterList: string[]) => {
+    if (filterList.length === 0) return null;
+    return <Badge variant="secondary" className="ml-auto font-normal">{filterList.length}</Badge>
+  }
+
   return (
     <div className="mt-4 flex flex-wrap items-center gap-2">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline">
-            <Filter className="mr-2 h-4 w-4" />
-            Filter
-            {activeFilterCount > 0 && <Badge variant="secondary" className="ml-2">{activeFilterCount}</Badge>}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56" align="start">
-          <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {POST_STATUSES.map(status => (
-            <DropdownMenuCheckboxItem
-              key={status}
-              checked={filters.status.includes(status)}
-              onSelect={(e) => e.preventDefault()}
-              onCheckedChange={() => handleFilterChange('status', status)}
-            >
-              {status}
-            </DropdownMenuCheckboxItem>
-          ))}
-          <DropdownMenuLabel className="mt-2">Filter by Type</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {POST_TYPES.map(type => (
-            <DropdownMenuCheckboxItem
-              key={type}
-              checked={filters.types.includes(type)}
-              onSelect={(e) => e.preventDefault()}
-              onCheckedChange={() => handleFilterChange('types', type)}
-            >
-              {type}
-            </DropdownMenuCheckboxItem>
-          ))}
-          <DropdownMenuLabel className="mt-2">Filter by Platform</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {[...PLATFORMS].map(platform => (
-             <DropdownMenuCheckboxItem
-                key={platform}
-                checked={filters.platforms.includes(platform)}
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline" className='text-muted-foreground'>
+                    Status
+                    {renderFilterCount(filters.status)}
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="start">
+            <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {POST_STATUSES.map(status => (
+                <DropdownMenuCheckboxItem
+                key={status}
+                checked={filters.status.includes(status)}
                 onSelect={(e) => e.preventDefault()}
-                onCheckedChange={() => handleFilterChange('platforms', platform)}
-            >
-                {platform}
-            </DropdownMenuCheckboxItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+                onCheckedChange={() => handleFilterChange('status', status)}
+                >
+                {status}
+                </DropdownMenuCheckboxItem>
+            ))}
+            </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                 <Button variant="outline" className='text-muted-foreground'>
+                    Type
+                    {renderFilterCount(filters.types)}
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="start">
+                <DropdownMenuLabel>Filter by Type</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {POST_TYPES.map(type => (
+                    <DropdownMenuCheckboxItem
+                    key={type}
+                    checked={filters.types.includes(type)}
+                    onSelect={(e) => e.preventDefault()}
+                    onCheckedChange={() => handleFilterChange('types', type)}
+                    >
+                    {type}
+                    </DropdownMenuCheckboxItem>
+                ))}
+            </DropdownMenuContent>
+        </DropdownMenu>
+      
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline" className='text-muted-foreground'>
+                    Platform
+                    {renderFilterCount(filters.platforms)}
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="start">
+                <DropdownMenuLabel>Filter by Platform</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {[...PLATFORMS].map(platform => (
+                    <DropdownMenuCheckboxItem
+                        key={platform}
+                        checked={filters.platforms.includes(platform)}
+                        onSelect={(e) => e.preventDefault()}
+                        onCheckedChange={() => handleFilterChange('platforms', platform)}
+                    >
+                        {platform}
+                    </DropdownMenuCheckboxItem>
+                ))}
+            </DropdownMenuContent>
+        </DropdownMenu>
       
       {activeFilterCount > 0 && (
         <Button variant="ghost" onClick={clearFilters} className="text-muted-foreground">
