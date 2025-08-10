@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import type { Project, ProjectData, CalendarData, Post, PostStatus, PostType } from '@/lib/types';
-import { PLATFORMS } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import {
   collection,
@@ -13,8 +12,10 @@ import {
   updateDoc,
   deleteDoc,
   setDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { saveProjectAndLog } from '@/app/actions';
 
 interface Filters {
     status: PostStatus[];
@@ -92,7 +93,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           const projectDocRef = doc(db, 'projects', activeProject.id);
           const projectDoc = await getDoc(projectDocRef);
           if (projectDoc.exists()) {
-            setActiveProjectData(projectDoc.data() as ProjectData);
+            const data = projectDoc.data() as ProjectData;
+            // Ensure calendarData is not undefined
+            if (!data.calendarData) {
+                data.calendarData = {};
+            }
+            setActiveProjectData(data);
           } else {
              // If data doesn't exist, create initial structure
             const initialData: ProjectData = {
@@ -125,14 +131,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (!name.trim()) return;
     setLoading(true);
     try {
-      const docRef = await addDoc(projectsCollectionRef, { name });
-      const newProject = { id: docRef.id, name };
-      await setDoc(doc(db, 'projects', docRef.id), {
+      const initialData: ProjectData = {
         name,
         startDate: '',
         endDate: '',
         calendarData: {},
-      });
+      };
+      const docRef = await addDoc(projectsCollectionRef, initialData);
+      const newProject = { id: docRef.id, name };
       setProjects((prev) => [...prev, newProject]);
       setActiveProject(newProject);
       toast({ title: 'Success', description: `Project "${name}" created.` });
@@ -172,16 +178,28 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const deleteProject = async (id: string) => {
+ const deleteProject = async (id: string) => {
     setLoading(true);
-    const projectDoc = doc(db, 'projects', id);
     try {
-      await deleteDoc(projectDoc);
+      const logsCollectionRef = collection(db, 'projects', id, 'logs');
+      const logsSnapshot = await getDocs(logsCollectionRef);
+      
+      const batch = writeBatch(db);
+
+      logsSnapshot.forEach((logDoc) => {
+        batch.delete(logDoc.ref);
+      });
+
+      const projectDocRef = doc(db, 'projects', id);
+      batch.delete(projectDocRef);
+
+      await batch.commit();
+
       setProjects((prev) => prev.filter((p) => p.id !== id));
       if (activeProject?.id === id) {
         setActiveProject(null);
       }
-      toast({ title: 'Success', description: 'Project deleted.' });
+      toast({ title: 'Success', description: 'Project and its logs deleted.' });
     } catch (error) {
       console.error('Error deleting project:', error);
       toast({
@@ -218,15 +236,18 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const saveProjectToDb = async () => {
     if (!activeProject || !activeProjectData) return;
     setLoading(true);
-    const projectDoc = doc(db, 'projects', activeProject.id);
     try {
-      await setDoc(projectDoc, activeProjectData);
-      toast({ title: 'Project Saved!', description: 'Your changes have been saved to the cloud.' });
+      const result = await saveProjectAndLog(activeProject.id, activeProjectData);
+      if (result.success) {
+        toast({ title: 'Project Saved!', description: 'Your changes have been saved to the cloud.' });
+      } else {
+        throw new Error(result.message);
+      }
     } catch (error) {
       console.error('Error saving project:', error);
       toast({
         title: 'Error',
-        description: 'Failed to save project.',
+        description: (error as Error).message || 'Failed to save project.',
         variant: 'destructive',
       });
     } finally {
@@ -240,6 +261,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         return;
     }
     const sanitizedData = { ...data };
+    if(!sanitizedData.calendarData) {
+        sanitizedData.calendarData = {};
+    }
     // Sanitize imported data to make sure it includes the new status field
     for (const key in sanitizedData.calendarData) {
         const post = sanitizedData.calendarData[key];

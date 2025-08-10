@@ -17,6 +17,7 @@ import { CalendarGrid } from '@/components/CalendarGrid';
 import { useProject } from '@/context/ProjectContext';
 import { FilterControls } from '@/components/FilterControls';
 import { Card } from '@/components/ui/card';
+import { LogsDashboard } from '@/components/LogsDashboard';
 
 export default function Home() {
   const { loading, activeProject, activeProjectData, initializing } = useProject();
@@ -73,19 +74,22 @@ export default function Home() {
           <CalendarControls />
           <FilterControls />
         </Card>
-        <Card className="flex-grow p-4 sm:p-6 shadow-sm overflow-auto">
-          {activeProjectData?.startDate && activeProjectData?.endDate ? (
-            <CalendarGrid />
-          ) : (
-            <div className="text-center py-20 h-full flex flex-col items-center justify-center">
-              <CalendarIcon className="mx-auto h-16 w-16 text-muted-foreground/30" strokeWidth="1" />
-              <h3 className="mt-4 text-xl font-medium text-foreground">Your Calendar Awaits</h3>
-              <p className="mt-1 text-md text-muted-foreground">
-                Select a start and end date to begin planning your content.
-              </p>
-            </div>
-          )}
-        </Card>
+        <div className='flex flex-col flex-grow min-h-0'>
+          <Card className="flex-grow p-4 sm:p-6 shadow-sm overflow-auto mb-4">
+            {activeProjectData?.startDate && activeProjectData?.endDate ? (
+              <CalendarGrid />
+            ) : (
+              <div className="text-center py-20 h-full flex flex-col items-center justify-center">
+                <CalendarIcon className="mx-auto h-16 w-16 text-muted-foreground/30" strokeWidth="1" />
+                <h3 className="mt-4 text-xl font-medium text-foreground">Your Calendar Awaits</h3>
+                <p className="mt-1 text-md text-muted-foreground">
+                  Select a start and end date to begin planning your content.
+                </p>
+              </div>
+            )}
+          </Card>
+          <LogsDashboard />
+        </div>
       </div>
     );
   };
@@ -125,7 +129,7 @@ export default function Home() {
         </SidebarContent>
       </Sidebar>
       <SidebarInset className="bg-body-background">
-        <main className="min-h-screen">
+        <main className="min-h-screen max-h-screen flex flex-col">
           <MainContent />
         </main>
       </SidebarInset>
