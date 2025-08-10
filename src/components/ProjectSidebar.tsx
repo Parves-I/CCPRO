@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useProject } from '@/context/ProjectContext';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, MoreHorizontal, Edit, Trash2, Loader2 } from 'lucide-react';
+import { Plus, MoreHorizontal, Edit, Trash2, Loader2, Search } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -22,7 +22,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import {
@@ -37,12 +36,15 @@ export function ProjectSidebar() {
   const { projects, activeProject, setActiveProject, createProject, updateProject, deleteProject, loading } = useProject();
   const [isCreateOpen, setCreateOpen] = React.useState(false);
   const [newProjectName, setNewProjectName] = React.useState('');
+  const [searchTerm, setSearchTerm] = React.useState('');
 
   const handleCreateProject = async () => {
     await createProject(newProjectName);
     setNewProjectName('');
     setCreateOpen(false);
   };
+
+  const filteredProjects = projects.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
   
   return (
     <div className="h-full flex flex-col">
@@ -73,9 +75,20 @@ export function ProjectSidebar() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <div className="p-2">
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input 
+            placeholder="Search projects..."
+            className="pl-8"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
       <ScrollArea className="flex-grow">
         <div className="p-2 space-y-1">
-          {projects.map((project) => (
+          {filteredProjects.map((project) => (
             <ProjectItem
               key={project.id}
               project={project}

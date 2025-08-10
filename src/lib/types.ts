@@ -18,6 +18,16 @@ export const POST_TYPES = [
 
 export type PostType = typeof POST_TYPES[number];
 
+export const POST_STATUSES = [
+    "Planned",
+    "On Approval",
+    "Scheduled",
+    "Posted",
+    "Edited",
+] as const;
+
+export type PostStatus = typeof POST_STATUSES[number];
+
 export const THEME_COLORS = [
   "transparent",
   "#fecaca", // red-200
@@ -36,6 +46,7 @@ export interface Post {
   types: PostType[];
   platforms: string[]; // Can include Platform or custom strings
   color: ThemeColor;
+  status: PostStatus;
 }
 
 export type CalendarData = Record<string, Post>; // Key is "YYYY-MM-DD"

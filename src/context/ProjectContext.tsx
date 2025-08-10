@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import type { Project, ProjectData, CalendarData, Post } from '@/lib/types';
+import type { Project, ProjectData, CalendarData, Post, PostStatus, PostType } from '@/lib/types';
+import { PLATFORMS } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import {
   collection,
@@ -15,12 +16,20 @@ import {
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
+interface Filters {
+    status: PostStatus[];
+    types: PostType[];
+    platforms: string[];
+}
+
 interface ProjectContextType {
   initializing: boolean;
   loading: boolean;
   projects: Project[];
   activeProject: Project | null;
   activeProjectData: ProjectData | null;
+  filters: Filters;
+  setFilters: React.Dispatch<React.SetStateAction<Filters>>;
   setActiveProject: (project: Project | null) => void;
   createProject: (name: string) => Promise<void>;
   updateProject: (id: string, name: string) => Promise<void>;
@@ -40,6 +49,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [projects, setProjects] = React.useState<Project[]>([]);
   const [activeProject, setActiveProject] = React.useState<Project | null>(null);
   const [activeProjectData, setActiveProjectData] = React.useState<ProjectData | null>(null);
+  const [filters, setFilters] = React.useState<Filters>({
+    status: [],
+    types: [],
+    platforms: [],
+  });
   const { toast } = useToast();
 
   const projectsCollectionRef = collection(db, 'projects');
@@ -225,7 +239,16 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         toast({ title: 'Error', description: 'No active project to import data into.', variant: 'destructive' });
         return;
     }
-    setActiveProjectData(data);
+    const sanitizedData = { ...data };
+    // Sanitize imported data to make sure it includes the new status field
+    for (const key in sanitizedData.calendarData) {
+        const post = sanitizedData.calendarData[key];
+        if (!post.status) {
+            post.status = 'Planned';
+        }
+    }
+
+    setActiveProjectData(sanitizedData);
     toast({ title: 'Import Successful', description: 'Data has been loaded. Click "Save" to persist changes.' });
   }
 
@@ -235,6 +258,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     projects,
     activeProject,
     activeProjectData,
+    filters,
+    setFilters,
     setActiveProject,
     createProject,
     updateProject,

@@ -16,7 +16,6 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-    AlertDialogTrigger,
   } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,10 +24,11 @@ import { Label } from '@/components/ui/label';
 import { Trash2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useProject } from '@/context/ProjectContext';
-import type { Post, Platform } from '@/lib/types';
-import { POST_TYPES, PLATFORMS, THEME_COLORS } from '@/lib/types';
+import type { Post, Platform, PostStatus } from '@/lib/types';
+import { POST_TYPES, PLATFORMS, THEME_COLORS, POST_STATUSES } from '@/lib/types';
 import { InstagramIcon, YouTubeIcon, LinkedInIcon, FacebookIcon, WebsiteIcon, OtherPlatformIcon } from './icons';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 
 interface PostDetailsModalProps {
@@ -57,6 +57,7 @@ export function PostDetailsModal({ isOpen, onClose, date, post }: PostDetailsMod
   const [selectedPlatforms, setSelectedPlatforms] = React.useState<Set<string>>(new Set());
   const [otherPlatformName, setOtherPlatformName] = React.useState('');
   const [selectedColor, setSelectedColor] = React.useState(THEME_COLORS[0]);
+  const [status, setStatus] = React.useState<PostStatus>('Planned');
   
   React.useEffect(() => {
     if (isOpen) {
@@ -64,6 +65,7 @@ export function PostDetailsModal({ isOpen, onClose, date, post }: PostDetailsMod
       setNotes(post?.notes || '');
       setSelectedTypes(new Set(post?.types || []));
       setSelectedColor(post?.color || THEME_COLORS[0]);
+      setStatus(post?.status || 'Planned');
       
       const initialPlatforms = new Set(post?.platforms.filter(p => PLATFORMS.includes(p as Platform)) || []);
       const otherPlatform = post?.platforms.find(p => !PLATFORMS.includes(p as Platform));
@@ -124,6 +126,7 @@ export function PostDetailsModal({ isOpen, onClose, date, post }: PostDetailsMod
         types: Array.from(selectedTypes) as Post['types'],
         platforms: finalPlatforms,
         color: selectedColor,
+        status: status,
     };
     updatePost(date, newPost);
     toast({ title: "Post Saved", description: "Remember to save the project to persist changes."});
@@ -173,22 +176,39 @@ export function PostDetailsModal({ isOpen, onClose, date, post }: PostDetailsMod
                         <Label htmlFor="post-title">Title</Label>
                         <Input id="post-title" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g., Q3 Product Showcase" />
                     </div>
-                    <div>
-                        <Label>Theme Color</Label>
-                        <div id="color-picker" className="flex gap-2 mt-2">
-                           {THEME_COLORS.map(color => (
-                               <div key={color}
-                                    className={cn("color-swatch w-8 h-8 rounded-full transition-transform ease-in-out cursor-pointer",
-                                    "hover:scale-110",
-                                    color === 'transparent' ? 'border-2 border-dashed border-gray-300' : '',
-                                    selectedColor === color && "ring-2 ring-offset-2 ring-primary"
-                                    )}
-                                    style={{ backgroundColor: color }}
-                                    onClick={() => setSelectedColor(color)}
-                                />
-                           ))}
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label>Theme Color</Label>
+                            <div id="color-picker" className="flex gap-2 mt-2">
+                            {THEME_COLORS.map(color => (
+                                <div key={color}
+                                        className={cn("color-swatch w-8 h-8 rounded-full transition-transform ease-in-out cursor-pointer",
+                                        "hover:scale-110",
+                                        color === 'transparent' ? 'border-2 border-dashed border-gray-300' : '',
+                                        selectedColor === color && "ring-2 ring-offset-2 ring-primary"
+                                        )}
+                                        style={{ backgroundColor: color }}
+                                        onClick={() => setSelectedColor(color)}
+                                    />
+                            ))}
+                            </div>
+                        </div>
+                        <div>
+                            <Label htmlFor="post-status">Status</Label>
+                            <Select value={status} onValueChange={(value: PostStatus) => setStatus(value)}>
+                                <SelectTrigger id="post-status" className='mt-1'>
+                                    <SelectValue placeholder="Select status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {POST_STATUSES.map(s => (
+                                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
+
                     <div>
                         <Label htmlFor="post-notes">Notes / Content</Label>
                         <Textarea id="post-notes" rows={8} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Add copy, links, hashtags, etc."/>

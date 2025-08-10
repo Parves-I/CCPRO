@@ -2,10 +2,9 @@
 
 import * as React from 'react';
 import { format } from 'date-fns';
-import type { Post } from '@/lib/types';
+import type { Post, PostStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { InstagramIcon, YouTubeIcon, LinkedInIcon, FacebookIcon, WebsiteIcon, OtherPlatformIcon } from './icons';
-import { useProject } from '@/context/ProjectContext';
 import { PostDetailsModal } from './PostDetailsModal';
 import { Badge } from './ui/badge';
 
@@ -22,6 +21,14 @@ const platformIconMap: Record<string, React.FC<React.SVGProps<SVGSVGElement>>> =
     Facebook: FacebookIcon,
     Website: WebsiteIcon,
     Other: OtherPlatformIcon,
+};
+
+const statusColorMap: Record<PostStatus, string> = {
+    Planned: 'bg-gray-400',
+    'On Approval': 'bg-yellow-500',
+    Scheduled: 'bg-blue-500',
+    Posted: 'bg-green-500',
+    Edited: 'bg-purple-500'
 };
 
 
@@ -51,7 +58,16 @@ export function CalendarDay({ day, post, isCurrentMonth }: CalendarDayProps) {
             borderLeft: `5px solid ${post?.color === 'transparent' ? 'transparent' : post?.color}`,
         }}
       >
-        <div className="font-bold text-gray-700 text-right text-sm">{format(day, 'd')}</div>
+        <div className="flex justify-between items-center">
+            {post?.status && (
+                <div className='flex items-center gap-1.5'>
+                    <div className={cn("w-2.5 h-2.5 rounded-full", statusColorMap[post.status])} />
+                    <span className='text-xs text-muted-foreground'>{post.status}</span>
+                </div>
+            )}
+            <div className="font-bold text-gray-700 text-right text-sm ml-auto">{format(day, 'd')}</div>
+        </div>
+
         <div className="day-content flex-grow flex flex-col justify-between mt-1 text-xs">
             {post ? (
                 <>

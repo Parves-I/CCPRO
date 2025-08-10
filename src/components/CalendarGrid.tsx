@@ -6,7 +6,7 @@ import { eachDayOfInterval, format, startOfWeek, endOfWeek } from 'date-fns';
 import { CalendarDay } from './CalendarDay';
 
 export function CalendarGrid() {
-  const { activeProjectData } = useProject();
+  const { activeProjectData, filters } = useProject();
 
   if (!activeProjectData || !activeProjectData.startDate || !activeProjectData.endDate) {
     return null;
@@ -27,6 +27,30 @@ export function CalendarGrid() {
 
   const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+  const filteredCalendarData = React.useMemo(() => {
+    if (filters.status.length === 0 && filters.types.length === 0 && filters.platforms.length === 0) {
+      return activeProjectData.calendarData;
+    }
+
+    const filteredData: typeof activeProjectData.calendarData = {};
+
+    for (const date in activeProjectData.calendarData) {
+      const post = activeProjectData.calendarData[date];
+      if (!post) continue;
+
+      const statusMatch = filters.status.length === 0 || filters.status.includes(post.status);
+      const typeMatch = filters.types.length === 0 || post.types.some(type => filters.types.includes(type));
+      const platformMatch = filters.platforms.length === 0 || post.platforms.some(platform => filters.platforms.includes(platform));
+
+      if (statusMatch && typeMatch && platformMatch) {
+        filteredData[date] = post;
+      }
+    }
+
+    return filteredData;
+  }, [activeProjectData.calendarData, filters]);
+
+
   return (
     <div id="calendar-grid" className="flex flex-col h-full">
       <div className="grid grid-cols-7 gap-1 text-center font-semibold text-gray-500 mb-2">
@@ -35,14 +59,24 @@ export function CalendarGrid() {
         ))}
       </div>
       <div className="grid grid-cols-7 grid-rows-6 gap-2 flex-grow">
-        {days.map((day) => (
-          <CalendarDay 
-            key={day.toString()} 
-            day={day} 
-            isCurrentMonth={day >= startDate && day <= endDate}
-            post={activeProjectData.calendarData[format(day, 'yyyy-MM-dd')]}
-          />
-        ))}
+        {days.map((day) => {
+          const post = filteredCalendarData[format(day, 'yyyy-MM-dd')];
+          const isCurrentMonth = day >= startDate && day <= endDate;
+
+          // If filters are active, we might not show a post even if one exists for that day.
+          // Or we might hide a day completely if there's no matching post.
+          // For simplicity, we'll just pass the (potentially undefined) post to CalendarDay.
+          // CalendarDay will handle rendering an empty state.
+
+          return (
+            <CalendarDay 
+              key={day.toString()} 
+              day={day} 
+              isCurrentMonth={isCurrentMonth}
+              post={post}
+            />
+          );
+        })}
       </div>
     </div>
   );

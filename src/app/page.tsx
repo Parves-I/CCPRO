@@ -15,6 +15,7 @@ import { ProjectSidebar } from '@/components/ProjectSidebar';
 import { CalendarControls } from '@/components/CalendarControls';
 import { CalendarGrid } from '@/components/CalendarGrid';
 import { useProject } from '@/context/ProjectContext';
+import { FilterControls } from '@/components/FilterControls';
 
 export default function Home() {
   const { loading, activeProject, activeProjectData, initializing } = useProject();
@@ -69,6 +70,7 @@ export default function Home() {
         </header>
         <div className="bg-card p-4 rounded-xl shadow-sm mb-6">
           <CalendarControls />
+          <FilterControls />
         </div>
         <div className="flex-grow bg-card p-4 sm:p-6 rounded-xl shadow-sm overflow-auto">
           {activeProjectData?.startDate && activeProjectData?.endDate ? (
@@ -78,7 +80,7 @@ export default function Home() {
               <CalendarIcon className="mx-auto h-12 w-12 text-muted-foreground/50" strokeWidth="1" />
               <h3 className="mt-2 text-lg font-medium text-foreground">Your calendar awaits</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Select a date range and click &quot;Generate&...&quot; to build your calendar.
+                Select a date range to begin planning your content.
               </p>
             </div>
           )}
