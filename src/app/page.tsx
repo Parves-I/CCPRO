@@ -97,9 +97,14 @@ export default function Home() {
       <Sidebar side="left" collapsible="icon">
         <SidebarHeader>
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-500">
-              CollabCal
-            </h1>
+            <div>
+              <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-500">
+                CCPRO
+              </h1>
+              <a href="https://www.wedefinenet.com" target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:underline">
+                  Powered by We Define Net
+              </a>
+            </div>
             <div className="md:hidden">
               <SidebarTrigger>
                 <Button variant="ghost" size="icon">
