@@ -23,7 +23,7 @@ import {
   } from '@/components/ui/dropdown-menu';
 
 export function CalendarControls() {
-  const { activeProjectData, updateActiveProjectData, saveProjectToDb, importProjectData, loading } = useProject();
+  const { activeProject, activeProjectData, updateActiveProjectData, saveProjectToDb, importProjectData, loading } = useProject();
   const calendarGridRef = React.useRef<HTMLElement | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
@@ -53,13 +53,21 @@ export function CalendarControls() {
         if (typeof text !== 'string') {
           throw new Error('File content is not valid text.');
         }
-        const data = JSON.parse(text) as ProjectData;
+        const data = JSON.parse(text) as Partial<ProjectData>;
 
         // Basic validation
-        if (!data.name || !data.calendarData || data.startDate === undefined || data.endDate === undefined) {
+        if (!data.calendarData || data.startDate === undefined || data.endDate === undefined) {
              throw new Error('Invalid .ccpro file format.');
         }
-        importProjectData(data);
+
+        const importedData: ProjectData = {
+          name: data.name || activeProject?.name || 'Untitled Project',
+          startDate: data.startDate,
+          endDate: data.endDate,
+          calendarData: data.calendarData,
+        };
+
+        importProjectData(importedData);
       } catch (error) {
         console.error('Failed to import file:', error);
         toast({

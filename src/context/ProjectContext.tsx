@@ -140,7 +140,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const projectDoc = doc(db, 'projects', id);
     try {
       await updateDoc(projectDoc, { name });
-      await fetchProjects();
+      setProjects(prev => prev.map(p => p.id === id ? {...p, name} : p));
       if(activeProject?.id === id) {
         setActiveProject(prev => prev ? {...prev, name} : null);
         updateActiveProjectData({ name });
