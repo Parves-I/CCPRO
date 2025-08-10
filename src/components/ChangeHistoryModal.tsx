@@ -44,7 +44,7 @@ export function ChangeHistoryModal({ isOpen, onClose }: ChangeHistoryModalProps)
 
         setLoading(true);
         const logsRef = collection(db, 'projects', activeProject.id, 'logs');
-        const q = query(logsRef, orderBy('timestamp', 'desc'), limit(50));
+        const q = query(logsRef, orderBy('timestamp', 'desc'), limit(20));
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedLogs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Log));
@@ -67,7 +67,7 @@ export function ChangeHistoryModal({ isOpen, onClose }: ChangeHistoryModalProps)
                         Change History for {activeProject?.name}
                     </DialogTitle>
                     <DialogDescription>
-                        A log of the last 50 saved changes for this project.
+                        A log of the last 20 saved changes for this project.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="flex-grow overflow-hidden -mx-6 px-6">
