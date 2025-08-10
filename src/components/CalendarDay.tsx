@@ -80,7 +80,7 @@ export function CalendarDay({ day, post, isCurrentMonth }: CalendarDayProps) {
                         <p className="font-semibold text-sm text-foreground break-words leading-tight">{post.title}</p>
                     </div>
                     <div className="flex items-center justify-end mt-auto pt-2 -space-x-2">
-                        {post.platforms.slice(0, 3).map((platform, index) => (
+                        {post.platforms.map((platform, index) => (
                            <PlatformIcon key={`${platform}-${index}`} platform={platform}/>
                         ))}
                     </div>
