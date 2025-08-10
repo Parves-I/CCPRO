@@ -1,0 +1,85 @@
+'use client';
+
+import * as React from 'react';
+import { format } from 'date-fns';
+import type { Post } from '@/lib/types';
+import { cn } from '@/lib/utils';
+import { InstagramIcon, YouTubeIcon, LinkedInIcon, FacebookIcon, WebsiteIcon, OtherPlatformIcon } from './icons';
+import { useProject } from '@/context/ProjectContext';
+import { PostDetailsModal } from './PostDetailsModal';
+import { Badge } from './ui/badge';
+
+interface CalendarDayProps {
+  day: Date;
+  isCurrentMonth: boolean;
+  post: Post | undefined;
+}
+
+const platformIconMap: Record<string, React.FC<React.SVGProps<SVGSVGElement>>> = {
+    Instagram: InstagramIcon,
+    YouTube: YouTubeIcon,
+    LinkedIn: LinkedInIcon,
+    Facebook: FacebookIcon,
+    Website: WebsiteIcon,
+    Other: OtherPlatformIcon,
+};
+
+
+export function CalendarDay({ day, post, isCurrentMonth }: CalendarDayProps) {
+    const [isModalOpen, setModalOpen] = React.useState(false);
+    const dateString = format(day, 'yyyy-MM-dd');
+
+    const PlatformIcon = ({ platform }: { platform: string }) => {
+        const IconComponent = platformIconMap[platform] || OtherPlatformIcon;
+        return (
+             <div className="w-7 h-7 bg-card rounded-full border-2 border-gray-100 flex items-center justify-center shadow">
+                 <IconComponent className="w-full h-full p-0.5" />
+             </div>
+        );
+    }
+    
+  return (
+    <>
+      <div
+        onClick={() => setModalOpen(true)}
+        className={cn(
+          'relative calendar-day bg-card border p-2 flex flex-col cursor-pointer transition-all duration-300 ease-in-out rounded-lg min-h-[150px] shadow-sm',
+          !isCurrentMonth && 'bg-muted/50 opacity-60 pointer-events-none',
+          post && 'hover:shadow-lg hover:-translate-y-1'
+        )}
+        style={{
+            borderLeft: `5px solid ${post?.color === 'transparent' ? 'transparent' : post?.color}`,
+        }}
+      >
+        <div className="font-bold text-gray-700 text-right text-sm">{format(day, 'd')}</div>
+        <div className="day-content flex-grow flex flex-col justify-between mt-1 text-xs">
+            {post ? (
+                <>
+                    <div>
+                        <div className="flex flex-wrap gap-1 mb-2">
+                           {post.types.slice(0, 2).map(type => (
+                                <Badge key={type} variant="secondary" className="text-xs">{type}</Badge>
+                           ))}
+                        </div>
+                        <p className="font-bold text-sm text-foreground break-words">{post.title}</p>
+                    </div>
+                    <div className="flex items-center mt-auto pt-2 -space-x-3">
+                        {post.platforms.slice(0, 3).map((platform, index) => (
+                           <PlatformIcon key={`${platform}-${index}`} platform={platform}/>
+                        ))}
+                    </div>
+                </>
+            ) : (
+                <div className="flex-grow" />
+            )}
+        </div>
+      </div>
+      <PostDetailsModal
+        isOpen={isModalOpen}
+        onClose={() => setModalOpen(false)}
+        date={dateString}
+        post={post}
+      />
+    </>
+  );
+}
