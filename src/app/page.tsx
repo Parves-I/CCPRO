@@ -17,7 +17,6 @@ import { CalendarGrid } from '@/components/CalendarGrid';
 import { useProject } from '@/context/ProjectContext';
 import { FilterControls } from '@/components/FilterControls';
 import { Card } from '@/components/ui/card';
-import { LogsDashboard } from '@/components/LogsDashboard';
 
 export default function Home() {
   const { loading, activeProject, activeProjectData, initializing } = useProject();
@@ -75,7 +74,7 @@ export default function Home() {
           <FilterControls />
         </Card>
         <div className='flex flex-col flex-grow min-h-0'>
-          <Card className="flex-grow p-4 sm:p-6 shadow-sm overflow-auto mb-4">
+          <Card className="flex-grow p-4 sm:p-6 shadow-sm overflow-auto">
             {activeProjectData?.startDate && activeProjectData?.endDate ? (
               <CalendarGrid />
             ) : (
@@ -88,7 +87,6 @@ export default function Home() {
               </div>
             )}
           </Card>
-          <LogsDashboard />
         </div>
       </div>
     );

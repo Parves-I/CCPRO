@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useProject } from '@/context/ProjectContext';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, MoreHorizontal, Edit, Trash2, Loader2, Search } from 'lucide-react';
+import { Plus, MoreHorizontal, Edit, Trash2, Loader2, Search, History } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -31,10 +31,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { SidebarFooter, SidebarSeparator } from './ui/sidebar';
+import { ChangeHistoryModal } from './ChangeHistoryModal';
 
 export function ProjectSidebar() {
   const { projects, activeProject, setActiveProject, createProject, updateProject, deleteProject, loading } = useProject();
   const [isCreateOpen, setCreateOpen] = React.useState(false);
+  const [isHistoryOpen, setHistoryOpen] = React.useState(false);
   const [newProjectName, setNewProjectName] = React.useState('');
   const [searchTerm, setSearchTerm] = React.useState('');
 
@@ -47,6 +50,7 @@ export function ProjectSidebar() {
   const filteredProjects = projects.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
   
   return (
+    <>
     <div className="h-full flex flex-col">
        <Dialog open={isCreateOpen} onOpenChange={setCreateOpen}>
         <DialogTrigger asChild>
@@ -101,7 +105,18 @@ export function ProjectSidebar() {
           ))}
         </div>
       </ScrollArea>
+      <SidebarFooter>
+        <SidebarSeparator />
+        <div className='p-2'>
+            <Button variant="ghost" className="w-full justify-start" onClick={() => setHistoryOpen(true)} disabled={!activeProject}>
+                <History className="mr-2 h-4 w-4" />
+                Change History
+            </Button>
+        </div>
+      </SidebarFooter>
     </div>
+    <ChangeHistoryModal isOpen={isHistoryOpen} onClose={() => setHistoryOpen(false)} />
+    </>
   );
 }
 
