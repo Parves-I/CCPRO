@@ -24,6 +24,7 @@ export const svgToPng = (svgComponent: React.ReactElement, width: number, height
         const img = new Image();
         img.width = width;
         img.height = height;
+        img.crossOrigin = 'anonymous'; // Fix for cross-origin issue
 
         img.onload = () => {
             const canvas = document.createElement('canvas');
