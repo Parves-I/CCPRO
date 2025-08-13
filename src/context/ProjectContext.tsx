@@ -38,6 +38,7 @@ interface ProjectContextType {
   updateActiveProjectData: (data: Partial<ProjectData>) => void;
   updatePost: (date: string, post: Post) => void;
   deletePost: (date: string) => void;
+  movePost: (sourceDate: string, destinationDate: string) => void;
   saveProjectToDb: () => Promise<void>;
   importProjectData: (data: ProjectData) => void;
 }
@@ -233,6 +234,31 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const movePost = (sourceDate: string, destinationDate: string) => {
+    setActiveProjectData(prev => {
+        if (!prev) return null;
+        
+        const newCalendarData = { ...prev.calendarData };
+        const sourcePost = newCalendarData[sourceDate];
+        const destinationPost = newCalendarData[destinationDate];
+
+        if (!sourcePost) return prev; // Should not happen if drag is initiated correctly
+
+        // Clear the source post first
+        delete newCalendarData[sourceDate];
+
+        // Place source post at destination
+        newCalendarData[destinationDate] = sourcePost;
+
+        // If there was a post at the destination, move it to the source. Otherwise, the source is now empty.
+        if (destinationPost) {
+            newCalendarData[sourceDate] = destinationPost;
+        }
+
+        return { ...prev, calendarData: newCalendarData };
+    });
+  };
+
   const saveProjectToDb = async () => {
     if (!activeProject || !activeProjectData) return;
     setLoading(true);
@@ -260,7 +286,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         toast({ title: 'Error', description: 'No active project to import data into.', variant: 'destructive' });
         return;
     }
-    const sanitizedData = { ...data };
+    const importedName = data.name || activeProject.name;
+    const projectDataWithFallbackName: ProjectData = {
+      ...data,
+      name: importedName,
+    }
+
+    const sanitizedData = { ...projectDataWithFallbackName };
     if(!sanitizedData.calendarData) {
         sanitizedData.calendarData = {};
     }
@@ -291,6 +323,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     updateActiveProjectData,
     updatePost,
     deletePost,
+    movePost,
     saveProjectToDb,
     importProjectData,
   };

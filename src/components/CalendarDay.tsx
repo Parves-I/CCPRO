@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils';
 import { InstagramIcon, YouTubeIcon, LinkedInIcon, FacebookIcon, WebsiteIcon, OtherPlatformIcon } from './icons';
 import { PostDetailsModal } from './PostDetailsModal';
 import { Badge } from './ui/badge';
+import { useProject } from '@/context/ProjectContext';
+
 
 interface CalendarDayProps {
   day: Date;
@@ -33,8 +35,48 @@ const statusColorMap: Record<PostStatus, string> = {
 
 
 export function CalendarDay({ day, post, isCurrentMonth }: CalendarDayProps) {
+    const { movePost } = useProject();
     const [isModalOpen, setModalOpen] = React.useState(false);
+    const [isDragging, setIsDragging] = React.useState(false);
+    const [isDragOver, setIsDragOver] = React.useState(false);
     const dateString = format(day, 'yyyy-MM-dd');
+
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+      if (!post) return;
+      setIsDragging(true);
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', dateString);
+    };
+
+    const handleDragEnd = () => {
+      setIsDragging(false);
+    };
+    
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault(); // Necessary to allow dropping
+      if (!isDragOver) setIsDragOver(true);
+    };
+
+    const handleDragLeave = () => {
+      setIsDragOver(false);
+    };
+    
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      setIsDragOver(false);
+      const sourceDate = e.dataTransfer.getData('text/plain');
+      if (sourceDate && sourceDate !== dateString) {
+        movePost(sourceDate, dateString);
+      }
+    };
+    
+    const handleClick = () => {
+      // Prevent opening modal when drag operation is finishing.
+      if (!isDragging) {
+        setModalOpen(true);
+      }
+    }
+
 
     const PlatformIcon = ({ platform }: { platform: string }) => {
         const IconComponent = platformIconMap[platform] || OtherPlatformIcon;
@@ -48,11 +90,19 @@ export function CalendarDay({ day, post, isCurrentMonth }: CalendarDayProps) {
   return (
     <>
       <div
-        onClick={() => setModalOpen(true)}
+        draggable={!!post}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onClick={handleClick}
         className={cn(
           'relative calendar-day bg-card border p-2 flex flex-col cursor-pointer transition-all duration-300 ease-in-out rounded-lg min-h-[150px] shadow-sm',
           !isCurrentMonth && 'bg-muted/50 opacity-60 pointer-events-none',
-          post ? 'hover:shadow-lg hover:-translate-y-1' : 'hover:bg-accent'
+          post ? 'hover:shadow-lg hover:-translate-y-1' : 'hover:bg-accent',
+          isDragging && 'opacity-40 ring-2 ring-primary ring-offset-2 scale-95',
+          isDragOver && 'ring-2 ring-primary bg-primary/10'
         )}
         style={{
             borderLeft: `5px solid ${post?.color === 'transparent' ? 'hsl(var(--border))' : post?.color}`,
@@ -79,7 +129,7 @@ export function CalendarDay({ day, post, isCurrentMonth }: CalendarDayProps) {
                         </div>
                         <p className="font-semibold text-sm text-foreground break-words leading-tight">{post.title}</p>
                     </div>
-                    <div className="flex items-center justify-end mt-auto pt-2 -space-x-2">
+                    <div className="flex items-center justify-end mt-auto pt-2 -space-x-2 flex-wrap">
                         {post.platforms.map((platform, index) => (
                            <PlatformIcon key={`${platform}-${index}`} platform={platform}/>
                         ))}

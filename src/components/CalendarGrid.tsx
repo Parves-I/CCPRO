@@ -60,20 +60,19 @@ export function CalendarGrid() {
       </div>
       <div className="grid grid-cols-7 grid-rows-6 gap-2 flex-grow">
         {days.map((day) => {
-          const post = filteredCalendarData[format(day, 'yyyy-MM-dd')];
+          const dateKey = format(day, 'yyyy-MM-dd');
+          const post = filteredCalendarData[dateKey] || activeProjectData.calendarData[dateKey];
           const isCurrentMonth = day >= startDate && day <= endDate;
 
-          // If filters are active, we might not show a post even if one exists for that day.
-          // Or we might hide a day completely if there's no matching post.
-          // For simplicity, we'll just pass the (potentially undefined) post to CalendarDay.
-          // CalendarDay will handle rendering an empty state.
+          // When filters are active, we might show a placeholder for a dragged item's original spot
+          const displayPost = filteredCalendarData[dateKey];
 
           return (
             <CalendarDay 
               key={day.toString()} 
               day={day} 
               isCurrentMonth={isCurrentMonth}
-              post={post}
+              post={displayPost}
             />
           );
         })}
