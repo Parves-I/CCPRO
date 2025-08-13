@@ -26,7 +26,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 
 export function CalendarControls() {
-  const { activeCalendar, updateActiveCalendar, saveProjectToDb, importCalendarData, loading, createCalendar } = useProject();
+  const { activeProject, activeCalendar, updateActiveCalendar, saveProjectToDb, importCalendarData, loading, createCalendar } = useProject();
   const calendarGridRef = React.useRef<HTMLElement | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
@@ -88,6 +88,18 @@ export function CalendarControls() {
     reader.readAsText(file);
     event.target.value = ''; // Reset input
   };
+
+  const handlePdfExport = () => {
+    if (!calendarGridRef.current) {
+        toast({ title: 'Error', description: 'Calendar element not found.', variant: 'destructive' });
+        return;
+    }
+    if (!activeProject || !activeCalendar) {
+        toast({ title: 'Error', description: 'Active project or calendar not found.', variant: 'destructive' });
+        return;
+    }
+    exportToPDF(calendarGridRef.current, activeProject.name, activeCalendar.name);
+  }
   
   return (
     <div className="flex flex-col gap-4">
@@ -167,7 +179,7 @@ export function CalendarControls() {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                    <DropdownMenuItem onSelect={() => exportToPDF(calendarGridRef.current)} disabled={!activeCalendar}>
+                    <DropdownMenuItem onSelect={handlePdfExport} disabled={!activeCalendar}>
                         <FileText className="mr-2 h-4 w-4" />
                         Export as PDF
                     </DropdownMenuItem>
@@ -206,5 +218,3 @@ export function CalendarControls() {
     </div>
   );
 }
-
-    

@@ -4,15 +4,35 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { utils, writeFile } from 'xlsx';
 import type { Calendar } from './types';
+import { format } from 'date-fns';
 
-export const exportToPDF = async (calendarElement: HTMLElement | null) => {
+export const exportToPDF = async (calendarElement: HTMLElement, projectName: string, calendarName: string) => {
   if (!calendarElement) {
     alert('Calendar element not found.');
     return;
   }
   
+  // Temporarily add a white background to the body for the canvas rendering
+  // to ensure components with transparent backgrounds are rendered correctly.
+  const originalBodyColor = document.body.style.backgroundColor;
+  document.body.style.backgroundColor = 'white';
+
   try {
-    const canvas = await html2canvas(calendarElement, { scale: 2, useCORS: true, backgroundColor: null });
+    const canvas = await html2canvas(calendarElement, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      onclone: (document) => {
+        // Find the calendar element in the cloned document and ensure it's visible
+        const clonedCalendar = document.getElementById('calendar-grid');
+        if (clonedCalendar) {
+          // You can apply styles to the cloned document if needed
+        }
+      }
+    });
+    
+    document.body.style.backgroundColor = originalBodyColor;
+
     const imgData = canvas.toDataURL('image/png');
     
     // Use a fixed aspect ratio for landscape A4 paper for consistency
@@ -24,30 +44,65 @@ export const exportToPDF = async (calendarElement: HTMLElement | null) => {
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
-    const canvasAspectRatio = canvas.width / canvas.height;
-    const pdfAspectRatio = pdfWidth / pdfHeight;
+    const margin = 40;
 
+    // Header
+    pdf.setFontSize(22);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(`${projectName} - ${calendarName}`, margin, margin);
+
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Exported on: ${format(new Date(), 'PPP')}`, margin, margin + 20);
+
+    // Image
+    const canvasAspectRatio = canvas.width / canvas.height;
+    const contentWidth = pdfWidth - margin * 2;
+    const contentHeight = pdfHeight - (margin + 40) * 2; // Extra top margin for header
+    
     let finalWidth, finalHeight;
 
-    if (canvasAspectRatio > pdfAspectRatio) {
-      finalWidth = pdfWidth;
-      finalHeight = pdfWidth / canvasAspectRatio;
+    if (canvas.width > contentWidth || canvas.height > contentHeight) {
+      if (canvasAspectRatio > (contentWidth / contentHeight)) {
+        finalWidth = contentWidth;
+        finalHeight = finalWidth / canvasAspectRatio;
+      } else {
+        finalHeight = contentHeight;
+        finalWidth = finalHeight * canvasAspectRatio;
+      }
     } else {
-      finalHeight = pdfHeight;
-      finalWidth = pdfHeight * canvasAspectRatio;
+      finalWidth = canvas.width;
+      finalHeight = canvas.height;
     }
     
     // Center the image
     const x = (pdfWidth - finalWidth) / 2;
-    const y = (pdfHeight - finalHeight) / 2;
+    const y = margin + 40;
 
     pdf.addImage(imgData, 'PNG', x, y, finalWidth, finalHeight);
-    pdf.save('collabcal-export.pdf');
+    
+    // Footer
+    const pageCount = pdf.getNumberOfPages();
+    pdf.setFontSize(8);
+    for (let i = 1; i <= pageCount; i++) {
+        pdf.setPage(i);
+        pdf.text(
+            `Page ${i} of ${pageCount}`,
+            pdfWidth - margin,
+            pdfHeight - margin + 10,
+            { align: 'right' }
+        );
+    }
+    
+    pdf.save(`${projectName.replace(/\s+/g, '-')}-${calendarName.replace(/\s+/g, '-')}.pdf`);
+
   } catch (error) {
     console.error('Failed to export PDF:', error);
     alert('An error occurred while exporting to PDF.');
+    document.body.style.backgroundColor = originalBodyColor;
   }
 };
+
 
 export const exportToExcel = (calendar: Calendar) => {
   if (Object.keys(calendar.calendarData).length === 0) {
