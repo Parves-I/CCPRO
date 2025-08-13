@@ -106,7 +106,9 @@ export const exportToPDF = (project: Project | null, calendar: Calendar | null) 
     didDrawCell: (data) => {
         // Platform icons column
         if (data.column.index === 3 && data.cell.section === 'body') {
-            const platforms = data.cell.raw as string[];
+            const platforms = data.cell.raw;
+            if (!Array.isArray(platforms)) return;
+
             const iconSize = 14;
             const iconPadding = 2;
             let x = data.cell.x + iconPadding;
