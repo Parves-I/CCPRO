@@ -14,6 +14,7 @@ interface CalendarDayProps {
   day: Date;
   isCurrentMonth: boolean;
   post: Post | undefined;
+  isFilteredOut?: boolean;
 }
 
 const platformIconMap: Record<string, React.FC<React.SVGProps<SVGSVGElement>>> = {
@@ -34,7 +35,7 @@ const statusColorMap: Record<PostStatus, string> = {
 };
 
 
-export function CalendarDay({ day, post, isCurrentMonth }: CalendarDayProps) {
+export function CalendarDay({ day, post, isCurrentMonth, isFilteredOut }: CalendarDayProps) {
     const { movePost } = useProject();
     const [isModalOpen, setModalOpen] = React.useState(false);
     const [isDragging, setIsDragging] = React.useState(false);
@@ -90,7 +91,7 @@ export function CalendarDay({ day, post, isCurrentMonth }: CalendarDayProps) {
   return (
     <>
       <div
-        draggable={!!post}
+        draggable={!!post && !isFilteredOut}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onDragOver={handleDragOver}
@@ -100,9 +101,10 @@ export function CalendarDay({ day, post, isCurrentMonth }: CalendarDayProps) {
         className={cn(
           'relative calendar-day bg-card border p-2 flex flex-col cursor-pointer transition-all duration-300 ease-in-out rounded-lg min-h-[150px] shadow-sm',
           !isCurrentMonth && 'bg-muted/50 opacity-60 pointer-events-none',
-          post ? 'hover:shadow-lg hover:-translate-y-1' : 'hover:bg-accent',
+          post && !isFilteredOut ? 'hover:shadow-lg hover:-translate-y-1' : 'hover:bg-accent',
           isDragging && 'opacity-40 ring-2 ring-primary ring-offset-2 scale-95',
-          isDragOver && 'ring-2 ring-primary bg-primary/10'
+          isDragOver && 'ring-2 ring-primary bg-primary/10',
+          isFilteredOut && 'opacity-50 bg-muted/30'
         )}
         style={{
             borderLeft: `5px solid ${post?.color === 'transparent' ? 'hsl(var(--border))' : post?.color}`,
@@ -123,7 +125,7 @@ export function CalendarDay({ day, post, isCurrentMonth }: CalendarDayProps) {
                 <>
                     <div>
                         <div className="flex flex-wrap gap-1 mb-2">
-                           {post.types.slice(0, 2).map(type => (
+                           {post.types.map(type => (
                                 <Badge key={type} variant="secondary" className="text-xs">{type}</Badge>
                            ))}
                         </div>

@@ -56,9 +56,16 @@ export interface Project {
   name: string;
 }
 
-export interface ProjectData {
+export interface Calendar {
+  id: string;
   name: string;
   startDate: string;
   endDate: string;
   calendarData: CalendarData;
+}
+
+export interface ProjectData {
+  name: string;
+  calendars: Calendar[];
+  activeCalendarId: string | null;
 }

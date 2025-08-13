@@ -5,7 +5,7 @@ import { doc, setDoc, addDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { ProjectData } from '@/lib/types';
 
-export async function saveProjectAndLog(projectId: string, projectData: ProjectData) {
+export async function saveProjectAndLog(projectId: string, projectData: ProjectData, calendarName: string) {
   const ip = headers().get('x-forwarded-for') || 'Unknown';
   
   const projectDocRef = doc(db, 'projects', projectId);
@@ -19,7 +19,7 @@ export async function saveProjectAndLog(projectId: string, projectData: ProjectD
     await addDoc(logsCollectionRef, {
       timestamp: new Date(),
       ipAddress: ip,
-      changeDescription: `Project "${projectData.name}" was saved.`,
+      changeDescription: `Project "${projectData.name}" (Calendar: ${calendarName}) was saved.`,
     });
 
     return { success: true, message: 'Project saved successfully!' };

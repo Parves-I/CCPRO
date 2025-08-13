@@ -12,13 +12,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Filter, X, ChevronDown } from 'lucide-react';
+import { X, ChevronDown } from 'lucide-react';
 import { Badge } from './ui/badge';
 
 export function FilterControls() {
-  const { filters, setFilters, activeProjectData } = useProject();
+  const { filters, setFilters, activeCalendar } = useProject();
 
-  if (!activeProjectData || !activeProjectData.startDate) {
+  if (!activeCalendar || !activeCalendar.startDate) {
     return null;
   }
   

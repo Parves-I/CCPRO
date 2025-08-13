@@ -3,7 +3,7 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { utils, writeFile } from 'xlsx';
-import type { ProjectData } from './types';
+import type { Calendar } from './types';
 
 export const exportToPDF = async (calendarElement: HTMLElement | null) => {
   if (!calendarElement) {
@@ -49,15 +49,16 @@ export const exportToPDF = async (calendarElement: HTMLElement | null) => {
   }
 };
 
-export const exportToExcel = (projectData: ProjectData) => {
-  if (Object.keys(projectData.calendarData).length === 0) {
+export const exportToExcel = (calendar: Calendar) => {
+  if (Object.keys(calendar.calendarData).length === 0) {
     alert('No data to export.');
     return;
   }
-  const dataToExport = Object.entries(projectData.calendarData).map(
+  const dataToExport = Object.entries(calendar.calendarData).map(
     ([date, d]) => ({
       Date: date,
       Title: d.title,
+      Status: d.status,
       'Post Types': d.types.join(', '),
       Platforms: d.platforms.join(', '),
       Notes: d.notes,
@@ -71,32 +72,41 @@ export const exportToExcel = (projectData: ProjectData) => {
   utils.book_append_sheet(workbook, worksheet, 'Content Calendar');
   
   worksheet['!cols'] = [
-    { wch: 12 },
-    { wch: 40 },
-    { wch: 25 },
-    { wch: 30 },
-    { wch: 50 },
-    { wch: 15 },
+    { wch: 12 }, // Date
+    { wch: 40 }, // Title
+    { wch: 15 }, // Status
+    { wch: 25 }, // Post Types
+    { wch: 30 }, // Platforms
+    { wch: 50 }, // Notes
+    { wch: 15 }, // Color
   ];
   
-  writeFile(workbook, `${projectData.name.replace(/\s+/g, '-')}-export.xlsx`);
+  writeFile(workbook, `${calendar.name.replace(/\s+/g, '-')}-export.xlsx`);
 };
 
 
-export const exportToFile = (projectData: ProjectData) => {
-  if (Object.keys(projectData.calendarData).length === 0 && (!projectData.startDate || !projectData.endDate)) {
+export const exportToFile = (calendar: Calendar) => {
+  if (Object.keys(calendar.calendarData).length === 0 && (!calendar.startDate || !calendar.endDate)) {
     alert('There is nothing to save.');
     return;
   }
 
-  const dataStr = JSON.stringify(projectData, null, 2);
+  // Only export calendar-specific data
+  const exportData = {
+    name: calendar.name,
+    startDate: calendar.startDate,
+    endDate: calendar.endDate,
+    calendarData: calendar.calendarData,
+  }
+
+  const dataStr = JSON.stringify(exportData, null, 2);
   const blob = new Blob([dataStr], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${projectData.name.replace(/\s+/g, '-')}.ccpro`;
+  a.download = `${calendar.name.replace(/\s+/g, '-')}.ccpro`;
   document.body.appendChild(a);
-  a.click();
+a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 };

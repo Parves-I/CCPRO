@@ -17,9 +17,10 @@ import { CalendarGrid } from '@/components/CalendarGrid';
 import { useProject } from '@/context/ProjectContext';
 import { FilterControls } from '@/components/FilterControls';
 import { Card } from '@/components/ui/card';
+import { CalendarSelector } from '@/components/CalendarSelector';
 
 export default function Home() {
-  const { loading, activeProject, activeProjectData, initializing } = useProject();
+  const { loading, activeProject, activeCalendar, initializing } = useProject();
 
   const MainContent = () => {
     if (initializing) {
@@ -66,6 +67,7 @@ export default function Home() {
                 <SidebarTrigger />
              </div>
             <h1 className="text-3xl font-bold text-foreground">{activeProject.name}</h1>
+            <CalendarSelector />
           </div>
           {loading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
         </header>
@@ -75,7 +77,7 @@ export default function Home() {
         </Card>
         <div className='flex flex-col flex-grow min-h-0'>
           <Card className="flex-grow p-4 sm:p-6 shadow-sm overflow-auto">
-            {activeProjectData?.startDate && activeProjectData?.endDate ? (
+            {activeCalendar && activeCalendar.startDate && activeCalendar.endDate ? (
               <CalendarGrid />
             ) : (
               <div className="text-center py-20 h-full flex flex-col items-center justify-center">

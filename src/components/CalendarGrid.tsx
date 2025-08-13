@@ -6,14 +6,14 @@ import { eachDayOfInterval, format, startOfWeek, endOfWeek } from 'date-fns';
 import { CalendarDay } from './CalendarDay';
 
 export function CalendarGrid() {
-  const { activeProjectData, filters } = useProject();
+  const { activeCalendar, filters } = useProject();
 
-  if (!activeProjectData || !activeProjectData.startDate || !activeProjectData.endDate) {
+  if (!activeCalendar || !activeCalendar.startDate || !activeCalendar.endDate) {
     return null;
   }
 
-  const startDate = new Date(activeProjectData.startDate + 'T00:00:00');
-  const endDate = new Date(activeProjectData.endDate + 'T00:00:00');
+  const startDate = new Date(activeCalendar.startDate + 'T00:00:00');
+  const endDate = new Date(activeCalendar.endDate + 'T00:00:00');
 
   // To make sure we have full weeks, we get the start of the week of the start date
   // and the end of the week of the end date.
@@ -28,14 +28,15 @@ export function CalendarGrid() {
   const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   const filteredCalendarData = React.useMemo(() => {
+    if (!activeCalendar) return {};
     if (filters.status.length === 0 && filters.types.length === 0 && filters.platforms.length === 0) {
-      return activeProjectData.calendarData;
+      return activeCalendar.calendarData;
     }
 
-    const filteredData: typeof activeProjectData.calendarData = {};
+    const filteredData: typeof activeCalendar.calendarData = {};
 
-    for (const date in activeProjectData.calendarData) {
-      const post = activeProjectData.calendarData[date];
+    for (const date in activeCalendar.calendarData) {
+      const post = activeCalendar.calendarData[date];
       if (!post) continue;
 
       const statusMatch = filters.status.length === 0 || filters.status.includes(post.status);
@@ -48,7 +49,7 @@ export function CalendarGrid() {
     }
 
     return filteredData;
-  }, [activeProjectData.calendarData, filters]);
+  }, [activeCalendar, filters]);
 
 
   return (
@@ -61,10 +62,9 @@ export function CalendarGrid() {
       <div className="grid grid-cols-7 grid-rows-6 gap-2 flex-grow">
         {days.map((day) => {
           const dateKey = format(day, 'yyyy-MM-dd');
-          const post = filteredCalendarData[dateKey] || activeProjectData.calendarData[dateKey];
+          const post = activeCalendar?.calendarData[dateKey];
           const isCurrentMonth = day >= startDate && day <= endDate;
 
-          // When filters are active, we might show a placeholder for a dragged item's original spot
           const displayPost = filteredCalendarData[dateKey];
 
           return (
@@ -72,7 +72,8 @@ export function CalendarGrid() {
               key={day.toString()} 
               day={day} 
               isCurrentMonth={isCurrentMonth}
-              post={displayPost}
+              post={displayPost ?? post} // Fallback to original post for drop target visibility
+              isFilteredOut={!displayPost && !!post} // Is a post present but filtered out
             />
           );
         })}

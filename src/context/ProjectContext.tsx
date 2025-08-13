@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import type { Project, ProjectData, CalendarData, Post, PostStatus, PostType } from '@/lib/types';
+import type { Project, ProjectData, Post, PostStatus, PostType, Calendar } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import {
   collection,
@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { saveProjectAndLog } from '@/app/actions';
+import {nanoid} from 'nanoid';
 
 interface Filters {
     status: PostStatus[];
@@ -29,18 +30,23 @@ interface ProjectContextType {
   projects: Project[];
   activeProject: Project | null;
   activeProjectData: ProjectData | null;
+  activeCalendar: Calendar | null;
   filters: Filters;
   setFilters: React.Dispatch<React.SetStateAction<Filters>>;
   setActiveProject: (project: Project | null) => void;
   createProject: (name: string) => Promise<void>;
   updateProject: (id: string, name: string) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
-  updateActiveProjectData: (data: Partial<ProjectData>) => void;
+  setActiveCalendar: (calendarId: string) => void;
+  createCalendar: (name: string) => void;
+  updateActiveCalendar: (data: Partial<Calendar>) => void;
+  renameCalendar: (calendarId: string, newName: string) => void;
+  deleteCalendar: (calendarId: string) => void;
   updatePost: (date: string, post: Post) => void;
   deletePost: (date: string) => void;
   movePost: (sourceDate: string, destinationDate: string) => void;
   saveProjectToDb: () => Promise<void>;
-  importProjectData: (data: ProjectData) => void;
+  importCalendarData: (data: Partial<Calendar>) => void;
 }
 
 const ProjectContext = React.createContext<ProjectContextType | undefined>(undefined);
@@ -51,6 +57,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [projects, setProjects] = React.useState<Project[]>([]);
   const [activeProject, setActiveProject] = React.useState<Project | null>(null);
   const [activeProjectData, setActiveProjectData] = React.useState<ProjectData | null>(null);
+  const [activeCalendar, setActiveCalendar] = React.useState<Calendar | null>(null);
+
   const [filters, setFilters] = React.useState<Filters>({
     status: [],
     types: [],
@@ -90,26 +98,61 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       if (activeProject) {
         setLoading(true);
         setActiveProjectData(null);
+        setActiveCalendar(null);
         try {
           const projectDocRef = doc(db, 'projects', activeProject.id);
           const projectDoc = await getDoc(projectDocRef);
           if (projectDoc.exists()) {
-            const data = projectDoc.data() as ProjectData;
-            // Ensure calendarData is not undefined
-            if (!data.calendarData) {
-                data.calendarData = {};
+            let data = projectDoc.data() as ProjectData;
+            
+            // Migration for older data structure
+            if (!data.calendars) {
+              const oldData = projectDoc.data() as any;
+              const migratedCalendar: Calendar = {
+                id: nanoid(),
+                name: 'Main Calendar',
+                startDate: oldData.startDate || '',
+                endDate: oldData.endDate || '',
+                calendarData: oldData.calendarData || {},
+              };
+              data = {
+                name: data.name,
+                calendars: [migratedCalendar],
+                activeCalendarId: migratedCalendar.id,
+              }
             }
+            if (data.calendars.length === 0) {
+              const newCalendar: Calendar = {
+                id: nanoid(),
+                name: 'Main Calendar',
+                startDate: '',
+                endDate: '',
+                calendarData: {},
+              };
+              data.calendars.push(newCalendar);
+              data.activeCalendarId = newCalendar.id;
+            }
+
             setActiveProjectData(data);
+            const calendarToActivate = data.calendars.find(c => c.id === data.activeCalendarId) || data.calendars[0];
+            setActiveCalendar(calendarToActivate);
+            
           } else {
-             // If data doesn't exist, create initial structure
-            const initialData: ProjectData = {
-              name: activeProject.name,
+            const newCalendar: Calendar = {
+              id: nanoid(),
+              name: 'Main Calendar',
               startDate: '',
               endDate: '',
               calendarData: {},
             };
+            const initialData: ProjectData = {
+              name: activeProject.name,
+              calendars: [newCalendar],
+              activeCalendarId: newCalendar.id,
+            };
             await setDoc(projectDocRef, initialData);
             setActiveProjectData(initialData);
+            setActiveCalendar(newCalendar);
           }
         } catch (error) {
           console.error('Error fetching project data:', error);
@@ -123,6 +166,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         setActiveProjectData(null);
+        setActiveCalendar(null);
       }
     };
     fetchProjectData();
@@ -132,11 +176,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (!name.trim()) return;
     setLoading(true);
     try {
-      const initialData: ProjectData = {
-        name,
+       const newCalendar: Calendar = {
+        id: nanoid(),
+        name: 'Main Calendar',
         startDate: '',
         endDate: '',
         calendarData: {},
+      };
+      const initialData: ProjectData = {
+        name,
+        calendars: [newCalendar],
+        activeCalendarId: newCalendar.id,
       };
       const docRef = await addDoc(projectsCollectionRef, initialData);
       const newProject = { id: docRef.id, name };
@@ -164,7 +214,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       setProjects(prev => prev.map(p => p.id === id ? {...p, name} : p));
       if(activeProject?.id === id) {
         setActiveProject(prev => prev ? {...prev, name} : null);
-        updateActiveProjectData({ name });
+        setActiveProjectData(prev => prev ? { ...prev, name } : null);
       }
       toast({ title: 'Success', description: 'Project updated.' });
     } catch (error) {
@@ -213,58 +263,111 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateActiveProjectData = (data: Partial<ProjectData>) => {
-    setActiveProjectData((prev) => (prev ? { ...prev, ...data } : null));
+  const setActiveCalendar = (calendarId: string) => {
+    if (!activeProjectData) return;
+    const newActiveCalendar = activeProjectData.calendars.find(c => c.id === calendarId);
+    if (newActiveCalendar) {
+      setActiveCalendar(newActiveCalendar);
+      setActiveProjectData(prev => prev ? { ...prev, activeCalendarId: calendarId } : null);
+    }
   };
-  
-  const updatePost = (date: string, post: Post) => {
-    setActiveProjectData(prev => {
-        if (!prev) return null;
-        const newCalendarData = { ...prev.calendarData, [date]: post };
-        return { ...prev, calendarData: newCalendarData };
+
+  const createCalendar = (name: string) => {
+    if (!activeProjectData) return;
+    const newCalendar: Calendar = {
+      id: nanoid(),
+      name,
+      startDate: '',
+      endDate: '',
+      calendarData: {},
+    };
+    const updatedCalendars = [...activeProjectData.calendars, newCalendar];
+    setActiveProjectData(prev => prev ? { ...prev, calendars: updatedCalendars, activeCalendarId: newCalendar.id } : null);
+    setActiveCalendar(newCalendar);
+    toast({ title: 'Calendar Created', description: `"${name}" has been added to the project.` });
+  };
+
+  const renameCalendar = (calendarId: string, newName: string) => {
+    if (!activeProjectData) return;
+    const updatedCalendars = activeProjectData.calendars.map(c => 
+      c.id === calendarId ? { ...c, name: newName } : c
+    );
+    setActiveProjectData(prev => prev ? { ...prev, calendars: updatedCalendars } : null);
+    if(activeCalendar?.id === calendarId) {
+      setActiveCalendar(prev => prev ? {...prev, name: newName} : null);
+    }
+    toast({ title: 'Calendar Renamed', description: 'The calendar name has been updated.' });
+  }
+
+  const deleteCalendar = (calendarId: string) => {
+    if (!activeProjectData || activeProjectData.calendars.length <= 1) {
+      toast({ title: 'Cannot Delete', description: 'A project must have at least one calendar.', variant: 'destructive'});
+      return;
+    }
+
+    const updatedCalendars = activeProjectData.calendars.filter(c => c.id !== calendarId);
+    const newActiveCalendarId = activeProjectData.activeCalendarId === calendarId ? updatedCalendars[0].id : activeProjectData.activeCalendarId;
+    
+    setActiveProjectData(prev => prev ? { ...prev, calendars: updatedCalendars, activeCalendarId: newActiveCalendarId } : null);
+    setActiveCalendar(updatedCalendars.find(c => c.id === newActiveCalendarId) || null);
+    toast({ title: 'Calendar Deleted', description: 'The calendar has been removed from the project.' });
+  }
+
+  const updateActiveCalendar = (data: Partial<Calendar>) => {
+    setActiveCalendar(prev => (prev ? { ...prev, ...data } : null));
+    setActiveProjectData(prevData => {
+      if (!prevData || !activeCalendar) return null;
+      const updatedCalendars = prevData.calendars.map(c => 
+        c.id === activeCalendar.id ? { ...c, ...data } : c
+      );
+      return { ...prevData, calendars: updatedCalendars };
     });
+  };
+
+  const updatePost = (date: string, post: Post) => {
+    if (!activeCalendar) return;
+    const newCalendarData = { ...activeCalendar.calendarData, [date]: post };
+    updateActiveCalendar({ calendarData: newCalendarData });
   };
 
   const deletePost = (date: string) => {
-    setActiveProjectData(prev => {
-        if (!prev) return null;
-        const newCalendarData = { ...prev.calendarData };
-        delete newCalendarData[date];
-        return { ...prev, calendarData: newCalendarData };
-    });
+    if (!activeCalendar) return;
+    const newCalendarData = { ...activeCalendar.calendarData };
+    delete newCalendarData[date];
+    updateActiveCalendar({ calendarData: newCalendarData });
   };
 
   const movePost = (sourceDate: string, destinationDate: string) => {
-    setActiveProjectData(prev => {
-        if (!prev) return null;
-        
-        const newCalendarData = { ...prev.calendarData };
-        const sourcePost = newCalendarData[sourceDate];
-        const destinationPost = newCalendarData[destinationDate];
+    if (!activeCalendar) return;
+    const newCalendarData = { ...activeCalendar.calendarData };
+    const sourcePost = newCalendarData[sourceDate];
+    const destinationPost = newCalendarData[destinationDate];
 
-        if (!sourcePost) return prev; // Should not happen if drag is initiated correctly
+    if (!sourcePost) return; 
+    
+    delete newCalendarData[sourceDate];
+    newCalendarData[destinationDate] = sourcePost;
 
-        // Clear the source post first
-        delete newCalendarData[sourceDate];
-
-        // Place source post at destination
-        newCalendarData[destinationDate] = sourcePost;
-
-        // If there was a post at the destination, move it to the source. Otherwise, the source is now empty.
-        if (destinationPost) {
-            newCalendarData[sourceDate] = destinationPost;
-        }
-
-        return { ...prev, calendarData: newCalendarData };
-    });
+    if (destinationPost) {
+        newCalendarData[sourceDate] = destinationPost;
+    }
+    updateActiveCalendar({ calendarData: newCalendarData });
   };
 
   const saveProjectToDb = async () => {
-    if (!activeProject || !activeProjectData) return;
+    if (!activeProject || !activeProjectData || !activeCalendar) return;
     setLoading(true);
     try {
-      const result = await saveProjectAndLog(activeProject.id, activeProjectData);
+      // Find the calendar in the project data and update it
+      const finalProjectData = {
+        ...activeProjectData,
+        calendars: activeProjectData.calendars.map(c => c.id === activeCalendar.id ? activeCalendar : c)
+      }
+      
+      const result = await saveProjectAndLog(activeProject.id, finalProjectData, activeCalendar.name);
       if (result.success) {
+        // Update the main project data state after a successful save
+        setActiveProjectData(finalProjectData);
         toast({ title: 'Project Saved!', description: 'Your changes have been saved to the cloud.' });
       } else {
         throw new Error(result.message);
@@ -281,30 +384,25 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   };
   
-  const importProjectData = (data: ProjectData) => {
-    if (!activeProject) {
-        toast({ title: 'Error', description: 'No active project to import data into.', variant: 'destructive' });
+  const importCalendarData = (data: Partial<Calendar>) => {
+    if (!activeCalendar) {
+        toast({ title: 'Error', description: 'No active calendar to import data into.', variant: 'destructive' });
         return;
     }
-    const importedName = data.name || activeProject.name;
-    const projectDataWithFallbackName: ProjectData = {
-      ...data,
-      name: importedName,
-    }
-
-    const sanitizedData = { ...projectDataWithFallbackName };
-    if(!sanitizedData.calendarData) {
-        sanitizedData.calendarData = {};
-    }
-    // Sanitize imported data to make sure it includes the new status field
-    for (const key in sanitizedData.calendarData) {
-        const post = sanitizedData.calendarData[key];
+    const calendarData = data.calendarData || {};
+    // Sanitize imported data to make sure it includes the status field
+    for (const key in calendarData) {
+        const post = calendarData[key];
         if (!post.status) {
             post.status = 'Planned';
         }
     }
 
-    setActiveProjectData(sanitizedData);
+    updateActiveCalendar({
+      startDate: data.startDate,
+      endDate: data.endDate,
+      calendarData: calendarData,
+    });
     toast({ title: 'Import Successful', description: 'Data has been loaded. Click "Save" to persist changes.' });
   }
 
@@ -314,18 +412,23 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     projects,
     activeProject,
     activeProjectData,
+    activeCalendar,
     filters,
     setFilters,
     setActiveProject,
     createProject,
     updateProject,
     deleteProject,
-    updateActiveProjectData,
+    setActiveCalendar,
+    createCalendar,
+    updateActiveCalendar,
+    renameCalendar,
+    deleteCalendar,
     updatePost,
     deletePost,
     movePost,
     saveProjectToDb,
-    importProjectData,
+    importCalendarData,
   };
 
   return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;
