@@ -32,7 +32,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
 export function CalendarSelector() {
-    const { activeProjectData, activeCalendar, setActiveCalendar, renameCalendar, deleteCalendar, loading } = useProject();
+    const { activeProjectData, activeCalendar, switchActiveCalendar, renameCalendar, deleteCalendar, loading } = useProject();
     const [open, setOpen] = React.useState(false);
     const [isEditOpen, setEditOpen] = React.useState(false);
     const [isDeleteOpen, setDeleteOpen] = React.useState(false);
@@ -86,7 +86,7 @@ export function CalendarSelector() {
                                     key={calendar.id}
                                     value={calendar.name}
                                     onSelect={() => {
-                                        setActiveCalendar(calendar.id);
+                                        switchActiveCalendar(calendar.id);
                                         setOpen(false);
                                     }}
                                 >

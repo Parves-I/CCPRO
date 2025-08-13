@@ -37,7 +37,7 @@ interface ProjectContextType {
   createProject: (name: string) => Promise<void>;
   updateProject: (id: string, name: string) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
-  setActiveCalendar: (calendarId: string) => void;
+  switchActiveCalendar: (calendarId: string) => void;
   createCalendar: (name: string) => void;
   updateActiveCalendar: (data: Partial<Calendar>) => void;
   renameCalendar: (calendarId: string, newName: string) => void;
@@ -263,7 +263,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const setActiveCalendar = (calendarId: string) => {
+  const switchActiveCalendar = (calendarId: string) => {
     if (!activeProjectData) return;
     const newActiveCalendar = activeProjectData.calendars.find(c => c.id === calendarId);
     if (newActiveCalendar) {
@@ -399,6 +399,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
 
     updateActiveCalendar({
+      name: data.name || activeCalendar.name,
       startDate: data.startDate,
       endDate: data.endDate,
       calendarData: calendarData,
@@ -419,7 +420,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     createProject,
     updateProject,
     deleteProject,
-    setActiveCalendar,
+    switchActiveCalendar,
     createCalendar,
     updateActiveCalendar,
     renameCalendar,
