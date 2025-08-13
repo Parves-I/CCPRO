@@ -27,18 +27,12 @@ import { Label } from './ui/label';
 
 export function CalendarControls() {
   const { activeProject, activeCalendar, updateActiveCalendar, saveProjectToDb, importCalendarData, loading, createCalendar } = useProject();
-  const calendarGridRef = React.useRef<HTMLElement | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
 
   const [isCreateOpen, setCreateOpen] = React.useState(false);
   const [newCalendarName, setNewCalendarName] = React.useState('');
   
-  React.useEffect(() => {
-    // A bit of a hack to get the calendar grid element for PDF export
-    calendarGridRef.current = document.getElementById('calendar-grid');
-  }, [activeCalendar]);
-
   const startDate = activeCalendar?.startDate ? new Date(activeCalendar.startDate) : undefined;
   const endDate = activeCalendar?.endDate ? new Date(activeCalendar.endDate) : undefined;
   
@@ -90,15 +84,11 @@ export function CalendarControls() {
   };
 
   const handlePdfExport = () => {
-    if (!calendarGridRef.current) {
-        toast({ title: 'Error', description: 'Calendar element not found.', variant: 'destructive' });
-        return;
-    }
     if (!activeProject || !activeCalendar) {
         toast({ title: 'Error', description: 'Active project or calendar not found.', variant: 'destructive' });
         return;
     }
-    exportToPDF(calendarGridRef.current, activeProject.name, activeCalendar.name);
+    exportToPDF(activeCalendar, activeProject.name);
   }
   
   return (
