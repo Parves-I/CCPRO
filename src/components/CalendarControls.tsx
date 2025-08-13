@@ -26,19 +26,13 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 
 export function CalendarControls() {
-  const { activeCalendar, updateActiveCalendar, saveProjectToDb, importCalendarData, loading, createCalendar } = useProject();
-  const calendarGridRef = React.useRef<HTMLElement | null>(null);
+  const { activeProject, activeCalendar, updateActiveCalendar, saveProjectToDb, importCalendarData, loading, createCalendar } = useProject();
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
 
   const [isCreateOpen, setCreateOpen] = React.useState(false);
   const [newCalendarName, setNewCalendarName] = React.useState('');
   
-  React.useEffect(() => {
-    // A bit of a hack to get the calendar grid element for PDF export
-    calendarGridRef.current = document.getElementById('calendar-grid');
-  }, [activeCalendar]);
-
   const startDate = activeCalendar?.startDate ? new Date(activeCalendar.startDate) : undefined;
   const endDate = activeCalendar?.endDate ? new Date(activeCalendar.endDate) : undefined;
   
@@ -167,7 +161,7 @@ export function CalendarControls() {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                    <DropdownMenuItem onSelect={() => exportToPDF(calendarGridRef.current)} disabled={!activeCalendar}>
+                    <DropdownMenuItem onSelect={() => exportToPDF(activeProject, activeCalendar)} disabled={!activeCalendar}>
                         <FileText className="mr-2 h-4 w-4" />
                         Export as PDF
                     </DropdownMenuItem>
