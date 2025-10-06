@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { CalendarIcon, Loader2 } from 'lucide-react';
+import { CalendarIcon, Loader2, User } from 'lucide-react';
 import {
   Sidebar,
   SidebarHeader,
@@ -85,13 +85,13 @@ export default function Home() {
              <div className="md:hidden">
                 <SidebarTrigger />
              </div>
-             <div>
-                <AccountSelector />
-             </div>
             <h1 className="text-3xl font-bold text-foreground">{activeProject.name}</h1>
             <CalendarSelector />
           </div>
-          {loading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
+          <div className="flex items-center gap-4">
+            <AccountSelector />
+            {loading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
+          </div>
         </header>
         <Card className="p-4 mb-6 shadow-sm">
           <CalendarControls />
