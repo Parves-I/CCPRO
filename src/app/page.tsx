@@ -52,28 +52,32 @@ export default function Home() {
 
     if (!activeProject) {
       return (
-        <div className="flex h-full flex-col items-center justify-center text-center p-4">
-           <AccountSelector />
-           <div className="flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 my-6 shadow-md">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-10 w-10 text-primary"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
-            </svg>
+        <div className="flex flex-col h-full">
+          <header className="flex justify-end items-center p-4 sm:p-6 lg:p-8">
+            <AccountSelector />
+          </header>
+          <div className="flex-grow flex flex-col items-center justify-center text-center p-4 -mt-16">
+            <div className="flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 my-6 shadow-md">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-10 w-10 text-primary"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+            </div>
+            <h1 className="text-4xl font-bold text-foreground tracking-tight">Select a Project</h1>
+            <p className="mt-2 text-lg text-muted-foreground max-w-lg">
+              Create a new project or select an existing one from the sidebar to get started.
+            </p>
           </div>
-          <h1 className="text-4xl font-bold text-foreground tracking-tight">Select a Project</h1>
-          <p className="mt-2 text-lg text-muted-foreground max-w-lg">
-            Create a new project or select an existing one from the sidebar to get started.
-          </p>
         </div>
       );
     }
