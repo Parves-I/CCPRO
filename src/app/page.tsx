@@ -18,9 +18,10 @@ import { useProject } from '@/context/ProjectContext';
 import { FilterControls } from '@/components/FilterControls';
 import { Card } from '@/components/ui/card';
 import { CalendarSelector } from '@/components/CalendarSelector';
+import { AccountSelector } from '@/components/AccountSelector';
 
 export default function Home() {
-  const { loading, activeProject, activeCalendar, initializing } = useProject();
+  const { loading, activeProject, activeCalendar, initializing, accounts } = useProject();
 
   const MainContent = () => {
     if (initializing) {
@@ -31,11 +32,29 @@ export default function Home() {
         </div>
       );
     }
+    
+    if (accounts.length === 0) {
+      return (
+         <div className="flex h-full flex-col items-center justify-center text-center p-4">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-16 h-16 text-primary/50 mb-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m-3.74-2.228a3 3 0 0 0-4.682-2.72 8.985 8.985 0 0 0-3.74 2.228m12.162 0A9.043 9.043 0 0 1 12 18.75c-2.673 0-5.14-1-7.071-2.757M12 21a9.043 9.043 0 0 1-7.071-2.757" />
+            </svg>
+          <h1 className="text-4xl font-bold text-foreground tracking-tight">Welcome to CollabCal</h1>
+          <p className="mt-2 text-lg text-muted-foreground max-w-xl">
+            To get started, create an account. Accounts help you organize your projects. For example, you could have an account for "Personal" and another for "Work".
+          </p>
+           <div className="mt-6">
+              <AccountSelector />
+           </div>
+        </div>
+      )
+    }
 
     if (!activeProject) {
       return (
         <div className="flex h-full flex-col items-center justify-center text-center p-4">
-          <div className="flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-6 shadow-md">
+           <AccountSelector />
+           <div className="flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 my-6 shadow-md">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-10 w-10 text-primary"
@@ -51,9 +70,9 @@ export default function Home() {
               />
             </svg>
           </div>
-          <h1 className="text-4xl font-bold text-foreground tracking-tight">Welcome to CollabCal</h1>
+          <h1 className="text-4xl font-bold text-foreground tracking-tight">Select a Project</h1>
           <p className="mt-2 text-lg text-muted-foreground max-w-lg">
-            Your all-in-one content planning and workflow solution. Create a new project or select an existing one to get started.
+            Create a new project or select an existing one from the sidebar to get started.
           </p>
         </div>
       );
@@ -65,6 +84,9 @@ export default function Home() {
           <div className='flex items-center gap-4'>
              <div className="md:hidden">
                 <SidebarTrigger />
+             </div>
+             <div>
+                <AccountSelector />
              </div>
             <h1 className="text-3xl font-bold text-foreground">{activeProject.name}</h1>
             <CalendarSelector />

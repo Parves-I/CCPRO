@@ -12,7 +12,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { History, Globe, Loader2 } from 'lucide-react';
+import { History, Globe } from 'lucide-react';
 import { format } from 'date-fns';
 import { Skeleton } from './ui/skeleton';
 
@@ -32,18 +32,18 @@ interface ChangeHistoryModalProps {
 }
 
 export function ChangeHistoryModal({ isOpen, onClose }: ChangeHistoryModalProps) {
-    const { activeProject } = useProject();
+    const { activeAccount, activeProject } = useProject();
     const [logs, setLogs] = React.useState<Log[]>([]);
     const [loading, setLoading] = React.useState(true);
 
     React.useEffect(() => {
-        if (!isOpen || !activeProject) {
+        if (!isOpen || !activeProject || !activeAccount) {
             if(!isOpen) setLogs([]);
             return;
         };
 
         setLoading(true);
-        const logsRef = collection(db, 'projects', activeProject.id, 'logs');
+        const logsRef = collection(db, 'accounts', activeAccount.id, 'projects', activeProject.id, 'logs');
         const q = query(logsRef, orderBy('timestamp', 'desc'), limit(20));
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -56,7 +56,7 @@ export function ChangeHistoryModal({ isOpen, onClose }: ChangeHistoryModalProps)
         });
 
         return () => unsubscribe();
-    }, [activeProject, isOpen]);
+    }, [activeAccount, activeProject, isOpen]);
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>

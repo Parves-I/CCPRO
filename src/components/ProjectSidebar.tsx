@@ -33,21 +33,26 @@ import {
 import { cn } from '@/lib/utils';
 import { SidebarFooter, SidebarSeparator } from './ui/sidebar';
 import { ChangeHistoryModal } from './ChangeHistoryModal';
+import type { Project } from '@/lib/types';
 
 export function ProjectSidebar() {
-  const { projects, activeProject, setActiveProject, createProject, updateProject, deleteProject, loading } = useProject();
+  const { projects, activeProject, setActiveProject, createProject, updateProject, deleteProject, loading, activeAccount } = useProject();
   const [isCreateOpen, setCreateOpen] = React.useState(false);
   const [isHistoryOpen, setHistoryOpen] = React.useState(false);
   const [newProjectName, setNewProjectName] = React.useState('');
   const [searchTerm, setSearchTerm] = React.useState('');
 
   const handleCreateProject = async () => {
-    await createProject(newProjectName);
+    if (!activeAccount) return;
+    await createProject(newProjectName, activeAccount.id);
     setNewProjectName('');
     setCreateOpen(false);
   };
 
-  const filteredProjects = projects.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredProjects = projects.filter(p => 
+    p.accountId === activeAccount?.id &&
+    p.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
   
   return (
     <>
@@ -55,7 +60,7 @@ export function ProjectSidebar() {
        <Dialog open={isCreateOpen} onOpenChange={setCreateOpen}>
         <DialogTrigger asChild>
           <div className="p-2">
-            <Button className="w-full" disabled={loading}>
+            <Button className="w-full" disabled={loading || !activeAccount}>
               <Plus className="mr-2 h-4 w-4" />
               New Project
             </Button>
@@ -87,6 +92,7 @@ export function ProjectSidebar() {
             className="pl-8"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
+            disabled={!activeAccount}
           />
         </div>
       </div>
@@ -121,7 +127,7 @@ export function ProjectSidebar() {
 }
 
 function ProjectItem({ project, isActive, onSelect, onUpdate, onDelete, isLoading }: {
-  project: { id: string, name: string },
+  project: Project,
   isActive: boolean,
   onSelect: () => void,
   onUpdate: (id: string, name: string) => void,

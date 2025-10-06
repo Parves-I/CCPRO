@@ -51,9 +51,15 @@ export interface Post {
 
 export type CalendarData = Record<string, Post>; // Key is "YYYY-MM-DD"
 
+export interface Account {
+  id: string;
+  name: string;
+}
+
 export interface Project {
   id: string;
   name: string;
+  accountId: string;
 }
 
 export interface Calendar {
