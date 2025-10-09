@@ -4,23 +4,15 @@ import * as React from 'react';
 import { useProject } from '@/context/ProjectContext';
 import { Button } from '@/components/ui/button';
 import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-  } from '@/components/ui/command';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
+    DropdownMenuSeparator,
+    DropdownMenuSub,
+    DropdownMenuSubTrigger,
+    DropdownMenuSubContent,
+    DropdownMenuPortal
   } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
@@ -33,20 +25,22 @@ import { useToast } from '@/hooks/use-toast';
 
 export function AccountSelector() {
     const { accounts, activeAccount, setActiveAccount, createAccount, renameAccount, deleteAccount, loading } = useProject();
-    const [popoverOpen, setPopoverOpen] = React.useState(false);
     const [isCreateOpen, setCreateOpen] = React.useState(false);
     const [isEditOpen, setEditOpen] = React.useState(false);
     const [isDeleteOpen, setDeleteOpen] = React.useState(false);
     const [newName, setNewName] = React.useState('');
     const [deletePassword, setDeletePassword] = React.useState('');
+    const [accountToEdit, setAccountToEdit] = React.useState<typeof activeAccount>(null);
 
     const { toast } = useToast();
     
     React.useEffect(() => {
-        if(activeAccount && isEditOpen) {
-            setNewName(activeAccount.name);
+        if(accountToEdit && isEditOpen) {
+            setNewName(accountToEdit.name);
+        } else {
+            setNewName('');
         }
-    }, [activeAccount, isEditOpen]);
+    }, [accountToEdit, isEditOpen]);
 
     const handleCreate = () => {
         if(!newName.trim()) {
@@ -59,12 +53,13 @@ export function AccountSelector() {
     }
     
     const handleRename = () => {
-        if (!activeAccount || !newName.trim()) {
+        if (!accountToEdit || !newName.trim()) {
             toast({ title: 'Error', description: 'Account name cannot be empty.', variant: 'destructive'});
             return;
         }
-        renameAccount(activeAccount.id, newName.trim());
+        renameAccount(accountToEdit.id, newName.trim());
         setEditOpen(false);
+        setAccountToEdit(null);
     }
 
     const handleDelete = () => {
@@ -109,12 +104,11 @@ export function AccountSelector() {
 
     return (
         <div className="flex items-center gap-2">
-            <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                <PopoverTrigger asChild>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                 <Button
                     variant="outline"
                     role="combobox"
-                    aria-expanded={popoverOpen}
                     className="w-[200px] justify-between"
                     disabled={loading}
                 >
@@ -122,58 +116,52 @@ export function AccountSelector() {
                     {activeAccount ? activeAccount.name : "Select account"}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[250px] p-0">
-                    <Command>
-                        <CommandInput placeholder="Search accounts..." />
-                        <CommandList>
-                            <CommandEmpty>No accounts found.</CommandEmpty>
-                            <CommandGroup>
-                                {accounts.map((account) => (
-                                <CommandItem
-                                    key={account.id}
-                                    value={account.name}
-                                    onSelect={() => {
-                                        const newAccount = accounts.find(a => a.id === account.id) || null;
-                                        setActiveAccount(newAccount);
-                                        setPopoverOpen(false);
-                                    }}
-                                >
-                                    <Check
-                                        className={cn(
-                                            'mr-2 h-4 w-4',
-                                            activeAccount?.id === account.id ? 'opacity-100' : 'opacity-0'
-                                        )}
-                                    />
-                                    {account.name}
-                                </CommandItem>
-                                ))}
-                            </CommandGroup>
-                        </CommandList>
-                        <Button variant="ghost" className="w-full justify-start rounded-none border-t" onClick={() => { setCreateOpen(true); setPopoverOpen(false); }}>
-                            <Plus className="mr-2 h-4 w-4" /> Create New Account
-                        </Button>
-                    </Command>
-                </PopoverContent>
-            </Popover>
-
-            {activeAccount && <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" disabled={loading}>
-                        <MoreHorizontal className="h-4 w-4" />
-                    </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={() => setEditOpen(true)}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Rename
+                <DropdownMenuContent className="w-[250px]">
+                    {accounts.map((account) => (
+                        <DropdownMenuItem
+                            key={account.id}
+                            onSelect={() => {
+                                const newAccount = accounts.find(a => a.id === account.id) || null;
+                                setActiveAccount(newAccount);
+                            }}
+                        >
+                            <Check
+                                className={cn(
+                                    'mr-2 h-4 w-4',
+                                    activeAccount?.id === account.id ? 'opacity-100' : 'opacity-0'
+                                )}
+                            />
+                            {account.name}
+                        </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                     <DropdownMenuItem onSelect={() => setCreateOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" /> Create New Account
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setDeleteOpen(true)} className="text-destructive focus:text-destructive">
+                    
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Rename Account
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuPortal>
+                             <DropdownMenuSubContent>
+                                {accounts.map(account => (
+                                    <DropdownMenuItem key={account.id} onSelect={() => { setAccountToEdit(account); setEditOpen(true);}}>
+                                        {account.name}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
+                    </DropdownMenuSub>
+
+                    <DropdownMenuItem onSelect={() => setDeleteOpen(true)} className="text-destructive focus:text-destructive" disabled={!activeAccount}>
                         <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
+                        Delete Current Account
                     </DropdownMenuItem>
                 </DropdownMenuContent>
-            </DropdownMenu>}
+            </DropdownMenu>
 
             {/* Create Dialog */}
             <Dialog open={isCreateOpen} onOpenChange={setCreateOpen}>
@@ -193,17 +181,17 @@ export function AccountSelector() {
             </Dialog>
 
             {/* Rename Dialog */}
-            <Dialog open={isEditOpen} onOpenChange={setEditOpen}>
+            <Dialog open={isEditOpen} onOpenChange={(open) => { setEditOpen(open); if(!open) setAccountToEdit(null); }}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Rename Account</DialogTitle>
+                        <DialogTitle>Rename Account &quot;{accountToEdit?.name}&quot;</DialogTitle>
                     </DialogHeader>
                     <div>
-                        <Label htmlFor='rename-account-name'>Account Name</Label>
+                        <Label htmlFor='rename-account-name'>New Account Name</Label>
                         <Input id='rename-account-name' value={newName} onChange={(e) => setNewName(e.target.value)} />
                     </div>
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => setEditOpen(false)}>Cancel</Button>
+                        <Button variant="ghost" onClick={() => { setEditOpen(false); setAccountToEdit(null);}}>Cancel</Button>
                         <Button onClick={handleRename} disabled={loading}>{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save Changes</Button>
                     </DialogFooter>
                 </DialogContent>

@@ -130,7 +130,7 @@ function ProjectItem({ project, isActive, onSelect, onUpdate, onDelete, isLoadin
   project: Project,
   isActive: boolean,
   onSelect: () => void,
-  onUpdate: (id: string, name: string) => void,
+  onUpdate: (id: string, name: string, accountId: string) => void,
   onDelete: (id: string) => void,
   isLoading: boolean
 }) {
@@ -139,7 +139,7 @@ function ProjectItem({ project, isActive, onSelect, onUpdate, onDelete, isLoadin
   const [name, setName] = React.useState(project.name);
 
   const handleUpdate = async () => {
-    await onUpdate(project.id, name);
+    await onUpdate(project.id, name, project.accountId);
     setEditOpen(false);
   };
 
