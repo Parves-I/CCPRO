@@ -53,10 +53,10 @@ export default function Home() {
     if (!activeProject) {
       return (
         <div className="flex flex-col h-full">
-          <header className="flex justify-end items-center p-4 sm:p-6 lg:p-8">
+          <header className="flex justify-end items-center p-4 sm:p-6 lg:p-8 relative z-10">
             <AccountSelector />
           </header>
-          <div className="flex-grow flex flex-col items-center justify-center text-center p-4 -mt-16">
+          <div className="flex-grow flex flex-col items-center justify-center text-center p-4 -mt-24">
             <div className="flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 my-6 shadow-md">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
