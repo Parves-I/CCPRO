@@ -24,7 +24,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
 export function AccountSelector() {
-    const { accounts, activeAccount, setActiveAccount, createAccount, renameAccount, deleteAccount, loading } = useProject();
+    const { accounts, activeAccount, setActiveAccount, createAccount, renameAccount, deleteAccount, loading, initializing } = useProject();
     const [isCreateOpen, setCreateOpen] = React.useState(false);
     const [isEditOpen, setEditOpen] = React.useState(false);
     const [isDeleteOpen, setDeleteOpen] = React.useState(false);
@@ -74,7 +74,7 @@ export function AccountSelector() {
         setDeleteOpen(false);
     }
     
-    if (accounts.length === 0 && !loading) {
+    if (accounts.length === 0 && !initializing) {
         return (
             <>
                  <Button onClick={() => setCreateOpen(true)}>
@@ -110,7 +110,6 @@ export function AccountSelector() {
                     variant="outline"
                     role="combobox"
                     className="w-[200px] justify-between"
-                    disabled={loading}
                 >
                     <Users className="mr-2 h-4 w-4 shrink-0" />
                     {activeAccount ? activeAccount.name : "Select account"}

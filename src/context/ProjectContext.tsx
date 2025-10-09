@@ -7,19 +7,15 @@ import {
   collection,
   getDocs,
   doc,
-  getDoc,
   addDoc,
   updateDoc,
   deleteDoc,
-  setDoc,
   writeBatch,
   query,
-  where,
-  collectionGroup,
   onSnapshot,
+  collectionGroup,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { saveProjectAndLog } from '@/app/actions';
 import {nanoid} from 'nanoid';
 
 interface Filters {
@@ -87,19 +83,23 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const unsubscribeAccounts = onSnapshot(accountsCollectionRef, 
       (snapshot) => {
         const fetchedAccounts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Account));
+        setAccounts(fetchedAccounts);
+        
+        if (!activeAccount && fetchedAccounts.length > 0) {
+            setActiveAccount(fetchedAccounts[0]);
+        } else if (activeAccount && !fetchedAccounts.some(a => a.id === activeAccount.id)) {
+            setActiveAccount(fetchedAccounts[0] || null);
+        }
         
         // This is a one-time migration for old data structure
-        if (fetchedAccounts.length === 0) {
+        if (snapshot.docs.length === 0) {
             console.log("No accounts found, attempting to migrate old projects...");
             (async () => {
                 const oldProjectsSnapshot = await getDocs(collection(db, 'projects'));
                 if(oldProjectsSnapshot.empty) {
-                    console.log("No old projects to migrate.");
+                    console.log("No old projects to migrate. Creating default 'Socials' account.");
                     const newAccountRef = await addDoc(accountsCollectionRef, { name: 'Socials' });
-                    const newAcct = {id: newAccountRef.id, name: 'Socials'};
-                    setAccounts([newAcct]);
-                    setActiveAccount(newAcct);
-                    setProjects([]);
+                    // The onSnapshot listener will then pick this up.
                     setInitializing(false);
                     return;
                 }
@@ -118,11 +118,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                 console.log("Migration complete.");
                 // The snapshot listener will pick up the new account.
             })();
-        } else {
-            setAccounts(fetchedAccounts);
-            if (!activeAccount || !fetchedAccounts.some(a => a.id === activeAccount.id)) {
-                setActiveAccount(fetchedAccounts[0] || null);
-            }
         }
       }, 
       (error) => {
@@ -150,7 +145,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       unsubscribeAccounts();
       unsubscribeProjects();
     };
-  }, [toast]);
+  }, [toast, activeAccount]);
 
 
   // Effect to handle active account change
@@ -185,6 +180,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           setActiveProjectData(data);
           const calendarToActivate = data.calendars.find(c => c.id === data.activeCalendarId) || data.calendars[0];
           setActiveCalendar(calendarToActivate);
+        } else {
+          // This can happen if project is deleted from another client
+          setActiveProject(null);
         }
         setLoading(false);
       }, (error) => {
@@ -277,8 +275,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       };
       const projectCollectionRef = collection(db, 'accounts', accountId, 'projects');
       const docRef = await addDoc(projectCollectionRef, initialData);
-      // Let the snapshot listener update the local state
-      setActiveProject({ id: docRef.id, name, accountId });
+      const newProject = { id: docRef.id, name, accountId };
+      setActiveProject(newProject);
       toast({ title: 'Success', description: `Project "${name}" created.` });
     } catch (error) {
       console.error('Error creating project:', error);
@@ -298,7 +296,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const projectDoc = doc(db, 'accounts', accountId, 'projects', id);
     try {
       await updateDoc(projectDoc, { name });
-      // Let the snapshot listener update the local state
       toast({ title: 'Success', description: 'Project updated.' });
     } catch (error) {
       console.error('Error updating project:', error);
