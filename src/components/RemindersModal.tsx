@@ -136,42 +136,15 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
                         />
                     </TabsContent>
                     <TabsContent value="missed" className="flex-grow overflow-hidden mt-4">
-                        <div className="flex flex-col h-full">
-                            <div className="flex items-center gap-4 mb-4">
-                                <h3 className="text-lg font-medium">Viewing Missed Posts for:</h3>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline">
-                                            <Calendar className="mr-2 h-4 w-4" />
-                                            {format(viewingMonth, 'MMMM yyyy')}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0">
-                                        <CalendarPicker
-                                            mode="single"
-                                            month={viewingMonth}
-                                            onMonthChange={setViewingMonth}
-                                            components={{
-                                                Day: () => null, // Hide days
-                                            }}
-                                            captionLayout="dropdown-buttons"
-                                            fromYear={2020}
-                                            toYear={getYear(new Date())}
-                                        />
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                            <div className="flex-grow overflow-hidden">
-                                <PostsGrid 
-                                    posts={missedPosts} 
-                                    getProjectById={getProjectById} 
-                                    updatePostInProject={updatePostInProject} 
-                                    movePostInProject={movePostInProject} 
-                                    isUpcoming={false}
-                                    onCloseMissedPost={handleCloseMissedPost}
-                                />
-                            </div>
-                        </div>
+                        <MissedPostsView 
+                            posts={missedPosts} 
+                            getProjectById={getProjectById} 
+                            updatePostInProject={updatePostInProject} 
+                            movePostInProject={movePostInProject} 
+                            viewingMonth={viewingMonth}
+                            setViewingMonth={setViewingMonth}
+                            onCloseMissedPost={handleCloseMissedPost}
+                        />
                     </TabsContent>
                 </Tabs>
                  <DialogFooter className="pt-4 border-t">
@@ -182,14 +155,7 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
     )
 }
 
-interface UpcomingPostsViewProps extends PostsGridProps {
-    // No new props needed for now
-}
-
-
-function UpcomingPostsView(props: UpcomingPostsViewProps) {
-    const { posts } = props;
-
+function UpcomingPostsView({ posts, ...rest }: PostsGridProps) {
     const pendingEdits = posts.filter(p => p.status === 'Planned');
     const pendingApproval = posts.filter(p => p.status === 'Edited');
     const pendingSchedule = posts.filter(p => p.status === 'Approved');
@@ -205,23 +171,77 @@ function UpcomingPostsView(props: UpcomingPostsViewProps) {
                 <TabsTrigger value="pending-posted">Pending Posted <Badge variant="secondary" className="ml-2">{pendingPosted.length}</Badge></TabsTrigger>
             </TabsList>
             <TabsContent value="all" className="flex-grow overflow-hidden mt-4">
-                <PostsGrid {...props} isUpcoming />
+                <PostsGrid posts={posts} isUpcoming {...rest} />
             </TabsContent>
             <TabsContent value="pending-edits" className="flex-grow overflow-hidden mt-4">
-                <PostsGrid {...props} posts={pendingEdits} isUpcoming />
+                <PostsGrid posts={pendingEdits} isUpcoming {...rest} />
             </TabsContent>
             <TabsContent value="pending-approval" className="flex-grow overflow-hidden mt-4">
-                <PostsGrid {...props} posts={pendingApproval} isUpcoming />
+                <PostsGrid posts={pendingApproval} isUpcoming {...rest} />
             </TabsContent>
             <TabsContent value="pending-schedule" className="flex-grow overflow-hidden mt-4">
-                <PostsGrid {...props} posts={pendingSchedule} isUpcoming />
+                <PostsGrid posts={pendingSchedule} isUpcoming {...rest} />
             </TabsContent>
             <TabsContent value="pending-posted" className="flex-grow overflow-hidden mt-4">
-                <PostsGrid {...props} posts={pendingPosted} isUpcoming />
+                <PostsGrid posts={pendingPosted} isUpcoming {...rest} />
             </TabsContent>
         </Tabs>
     );
 }
+
+interface MissedPostsViewProps extends PostsGridProps {
+    viewingMonth: Date;
+    setViewingMonth: (date: Date) => void;
+}
+
+function MissedPostsView(props: MissedPostsViewProps) {
+    const { posts, viewingMonth, setViewingMonth, ...rest } = props;
+
+    const needsResolution = posts.filter(p => p.status !== 'Missed');
+    const resolutionProvided = posts.filter(p => p.status === 'Missed');
+    
+    return (
+         <div className="flex flex-col h-full">
+            <div className="flex items-center gap-4 mb-4">
+                <h3 className="text-lg font-medium">Viewing Missed Posts for:</h3>
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="outline">
+                            <Calendar className="mr-2 h-4 w-4" />
+                            {format(viewingMonth, 'MMMM yyyy')}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                        <CalendarPicker
+                            mode="single"
+                            month={viewingMonth}
+                            onMonthChange={setViewingMonth}
+                            components={{
+                                Day: () => null, // Hide days
+                            }}
+                            captionLayout="dropdown-buttons"
+                            fromYear={2020}
+                            toYear={getYear(new Date())}
+                        />
+                    </PopoverContent>
+                </Popover>
+            </div>
+            <Tabs defaultValue="needs-resolution" className="flex-grow flex flex-col min-h-0">
+                <TabsList>
+                    <TabsTrigger value="needs-resolution">Needs Resolution <Badge variant="destructive" className="ml-2">{needsResolution.length}</Badge></TabsTrigger>
+                    <TabsTrigger value="resolution-provided">Resolution Provided <Badge variant="secondary" className="ml-2">{resolutionProvided.length}</Badge></TabsTrigger>
+                </TabsList>
+                <TabsContent value="needs-resolution" className="flex-grow overflow-hidden mt-4">
+                    <PostsGrid posts={needsResolution} isUpcoming={false} {...rest} />
+                </TabsContent>
+                <TabsContent value="resolution-provided" className="flex-grow overflow-hidden mt-4">
+                    <PostsGrid posts={resolutionProvided} isUpcoming={false} {...rest} />
+                </TabsContent>
+            </Tabs>
+        </div>
+    );
+}
+
 
 interface PostsGridProps {
     posts: ReminderPost[];
