@@ -102,7 +102,7 @@ export default function Home() {
           <FilterControls />
         </Card>
         <div className='flex flex-col flex-grow min-h-0'>
-          <Card className="flex-grow p-4 sm:p-6 shadow-sm overflow-auto">
+          <Card id="calendar-grid-scroll-area" className="flex-grow p-4 sm:p-6 shadow-sm overflow-auto">
             {activeCalendar && activeCalendar.startDate && activeCalendar.endDate ? (
               <CalendarGrid />
             ) : (
