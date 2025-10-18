@@ -198,9 +198,25 @@ interface MissedPostsViewProps extends PostsGridProps {
 
 function MissedPostsView(props: MissedPostsViewProps) {
     const { posts, viewingMonth, setViewingMonth, ...rest } = props;
+    const [localPosts, setLocalPosts] = React.useState(posts);
 
-    const needsResolution = posts.filter(p => p.status !== 'Missed');
-    const resolutionProvided = posts.filter(p => p.status === 'Missed');
+    React.useEffect(() => {
+        setLocalPosts(posts);
+    }, [posts]);
+
+    const handlePostClosed = (projectId: string, calendarId: string, date: string) => {
+        const postIdentifier = `${projectId}-${calendarId}-${date}`;
+        // Update local state to reflect the change immediately
+        setLocalPosts(prev => prev.map(p => 
+            p.projectId === projectId && p.calendarId === calendarId && p.date === date
+            ? { ...p, status: 'Missed' }
+            : p
+        ));
+        rest.onCloseMissedPost?.(projectId, calendarId, date);
+    };
+
+    const needsResolution = localPosts.filter(p => p.status !== 'Missed');
+    const resolutionProvided = localPosts.filter(p => p.status === 'Missed');
     
     return (
          <div className="flex flex-col h-full">
@@ -234,7 +250,7 @@ function MissedPostsView(props: MissedPostsViewProps) {
                     <TabsTrigger value="resolution-provided">Resolution Provided <Badge variant="secondary" className="ml-2">{resolutionProvided.length}</Badge></TabsTrigger>
                 </TabsList>
                 <TabsContent value="needs-resolution" className="flex-grow overflow-hidden mt-4">
-                    <PostsGrid posts={needsResolution} isUpcoming={false} {...rest} />
+                    <PostsGrid posts={needsResolution} isUpcoming={false} onCloseMissedPost={handlePostClosed} {...rest} />
                 </TabsContent>
                 <TabsContent value="resolution-provided" className="flex-grow overflow-hidden mt-4">
                     <PostsGrid posts={resolutionProvided} isUpcoming={false} {...rest} />
@@ -300,7 +316,6 @@ function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedP
     const [isAlertOpen, setAlertOpen] = React.useState(false);
     
     const isActuallyMissed = isPast(new Date(post.date + 'T00:00:00')) && post.status !== 'Posted';
-    const cardStatus = post.status === 'Missed' ? 'Missed' : isActuallyMissed ? 'Missed' : post.status;
     const isResolutionView = post.status === 'Missed';
     
     const handleStatusUpdate = (newStatus: string) => {
@@ -312,7 +327,10 @@ function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedP
             setAlertOpen(true);
             return;
         }
-        updatePostInProject(post.projectId, post.calendarId, post.date, { missedReason: reason.trim(), status: 'Missed' });
+        updatePostInProject(post.projectId, post.calendarId, post.date, { 
+            missedReason: post.notes ? `${post.notes}\n\nMissed Reason: ${reason.trim()}` : `Missed Reason: ${reason.trim()}`,
+            status: 'Missed' 
+        });
         if(onCloseMissedPost) {
             onCloseMissedPost(post.projectId, post.calendarId, post.date);
         }
@@ -328,10 +346,10 @@ function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedP
     }
 
     return (
-        <Card className={cn("flex flex-col", cardStatus === 'Missed' && !isResolutionView && 'bg-red-50 border-red-200', isResolutionView && 'bg-muted/60')}>
+        <Card className={cn("flex flex-col", !isResolutionView && isActuallyMissed && 'bg-red-50 border-red-200', isResolutionView && 'bg-muted/60')}>
             <CardHeader className="flex-row items-start justify-between pb-2">
                  <CardTitle className="text-lg font-bold flex-grow pr-4">{post.title}</CardTitle>
-                 <Badge variant={cardStatus === 'Missed' ? 'destructive' : 'outline'}>{post.status}</Badge>
+                 <Badge variant={post.status === 'Missed' ? 'destructive' : 'outline'}>{post.status}</Badge>
             </CardHeader>
             <CardContent className="flex-grow space-y-4">
                  <div className="text-sm text-muted-foreground">
@@ -340,7 +358,7 @@ function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedP
                 {isResolutionView ? (
                      <div>
                         <p className="text-sm font-medium text-foreground">Reason for Missing:</p>
-                        <p className="text-sm text-muted-foreground p-2 bg-background rounded-md border mt-1">{post.missedReason || 'No reason provided.'}</p>
+                        <p className="text-sm text-muted-foreground p-2 bg-background rounded-md border mt-1">{post.notes || 'No reason provided.'}</p>
                      </div>
                 ) : isActuallyMissed ? (
                      <div className='space-y-2'>

@@ -147,7 +147,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             const allProjects = snapshot.docs.map(docSnap => {
               const data = docSnap.data() as ProjectData;
               
-              // Automatically update post status to 'Missed' - Now handled in Reminders modal
+              // This is now handled in the Reminders modal logic
               
               newAllProjectData.set(docSnap.id, data);
               return { ...data, id: docSnap.id, accountId: docSnap.ref.parent.parent?.id } as Project;
