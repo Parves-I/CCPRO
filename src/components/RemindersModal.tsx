@@ -295,10 +295,17 @@ function PostsGrid({ posts, getProjectById, updatePostInProject, movePostInProje
 function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedPost }: { post: ReminderPost, updatePostInProject: PostsGridProps['updatePostInProject'], movePostInProject: PostsGridProps['movePostInProject'], onCloseMissedPost?: PostsGridProps['onCloseMissedPost'] }) {
     const [reason, setReason] = React.useState('');
     const [isAlertOpen, setAlertOpen] = React.useState(false);
+    const [isEditing, setIsEditing] = React.useState(false);
     
     const isActuallyMissed = isPast(new Date(post.date + 'T00:00:00')) && post.status !== 'Posted';
     const isResolutionView = post.status === 'Missed';
     
+    React.useEffect(() => {
+        if (isResolutionView) {
+            setIsEditing(false);
+        }
+    }, [isResolutionView]);
+
     const handleStatusUpdate = (newStatus: string) => {
         updatePostInProject(post.projectId, post.calendarId, post.date, { status: newStatus as Post['status'] });
     }
@@ -327,7 +334,7 @@ function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedP
     }
 
     return (
-        <Card className={cn("flex flex-col", !isResolutionView && isActuallyMissed && 'bg-red-50 border-red-200', isResolutionView && 'bg-muted/60')}>
+        <Card className={cn("flex flex-col", !isResolutionView && isActuallyMissed && 'bg-red-50 border-red-200', isResolutionView && !isEditing && 'bg-muted/60')}>
             <CardHeader className="flex-row items-start justify-between pb-2">
                  <CardTitle className="text-lg font-bold flex-grow pr-4">{post.title}</CardTitle>
                  <Badge variant={post.status === 'Missed' ? 'destructive' : 'outline'}>{post.status}</Badge>
@@ -336,10 +343,18 @@ function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedP
                  <div className="text-sm text-muted-foreground">
                     <p>Date: {format(new Date(post.date + 'T00:00:00'), 'EEE, MMM d')}</p>
                  </div>
-                {isResolutionView ? (
-                     <div>
-                        <p className="text-sm font-medium text-foreground">Reason for Missing:</p>
-                        <p className="text-sm text-muted-foreground p-2 bg-background rounded-md border mt-1">{post.notes || 'No reason provided.'}</p>
+                {isResolutionView && !isEditing ? (
+                     <div className='space-y-2'>
+                        <div>
+                            <p className="text-sm font-medium text-foreground">Reason for Missing:</p>
+                            <p className="text-sm text-muted-foreground p-2 bg-background rounded-md border mt-1">{post.notes || 'No reason provided.'}</p>
+                        </div>
+                        <div className="flex justify-end">
+                            <Button size="sm" variant="ghost" onClick={() => setIsEditing(true)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                            </Button>
+                        </div>
                      </div>
                 ) : isActuallyMissed ? (
                      <div className='space-y-2'>
@@ -366,6 +381,9 @@ function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedP
                             <Textarea id={`reason-${post.date}`} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Awaiting client feedback..."/>
                         </div>
                         <div className='flex gap-2 justify-end'>
+                            {isEditing && 
+                                <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>Cancel</Button>
+                            }
                             <Button size="sm" onClick={handleCloseMissed}><FileX className="mr-2 h-4 w-4"/> Close as Missed</Button>
                         </div>
                      </div>
