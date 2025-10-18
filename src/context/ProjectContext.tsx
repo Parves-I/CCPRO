@@ -38,6 +38,7 @@ interface ProjectContextType {
   activeProjectData: ProjectData | null;
   activeCalendar: Calendar | null;
   filters: Filters;
+  allProjectData: Map<string, ProjectData>;
   setFilters: React.Dispatch<React.SetStateAction<Filters>>;
   createAccount: (name: string) => Promise<void>;
   renameAccount: (id: string, name: string) => Promise<void>;
@@ -146,15 +147,19 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
               
               // Automatically update post status to 'Missed'
               const today = startOfToday();
-              data.calendars.forEach(calendar => {
-                  Object.keys(calendar.calendarData).forEach(dateStr => {
-                      const post = calendar.calendarData[dateStr];
-                      const postDate = new Date(dateStr + 'T00:00:00');
-                      if (post.status === 'Planned' && isPast(postDate) && !post.missedReason) {
-                          post.status = 'Missed';
-                      }
-                  });
-              });
+              if (data.calendars) {
+                data.calendars.forEach(calendar => {
+                    if (calendar.calendarData) {
+                      Object.keys(calendar.calendarData).forEach(dateStr => {
+                          const post = calendar.calendarData[dateStr];
+                          const postDate = new Date(dateStr + 'T00:00:00');
+                          if (post.status === 'Planned' && isPast(postDate) && !post.missedReason) {
+                              post.status = 'Missed';
+                          }
+                      });
+                    }
+                });
+              }
               
               newAllProjectData.set(docSnap.id, data);
               return { ...data, id: docSnap.id, accountId: docSnap.ref.parent.parent?.id } as Project;
