@@ -142,11 +142,12 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
 }
 
 function UpcomingPostsView(props: PostsGridProps) {
-    const { posts, getProjectById, updatePostInProject, movePostInProject } = props;
+    const { posts } = props;
 
     const pendingEdits = posts.filter(p => p.status === 'Planned');
     const pendingApproval = posts.filter(p => p.status === 'Edited');
     const pendingSchedule = posts.filter(p => p.status === 'Approved');
+    const pendingPosted = posts.filter(p => p.status === 'Scheduled');
 
     return (
         <Tabs defaultValue="all" className="flex-grow flex flex-col min-h-0 h-full">
@@ -155,9 +156,10 @@ function UpcomingPostsView(props: PostsGridProps) {
                 <TabsTrigger value="pending-edits">Pending Edits <Badge variant="secondary" className="ml-2">{pendingEdits.length}</Badge></TabsTrigger>
                 <TabsTrigger value="pending-approval">Pending Approval <Badge variant="secondary" className="ml-2">{pendingApproval.length}</Badge></TabsTrigger>
                 <TabsTrigger value="pending-schedule">Pending Schedule <Badge variant="secondary" className="ml-2">{pendingSchedule.length}</Badge></TabsTrigger>
+                <TabsTrigger value="pending-posted">Pending Posted <Badge variant="secondary" className="ml-2">{pendingPosted.length}</Badge></TabsTrigger>
             </TabsList>
             <TabsContent value="all" className="flex-grow overflow-hidden mt-4">
-                <PostsGrid {...props} posts={posts} isUpcoming />
+                <PostsGrid {...props} isUpcoming />
             </TabsContent>
             <TabsContent value="pending-edits" className="flex-grow overflow-hidden mt-4">
                 <PostsGrid {...props} posts={pendingEdits} isUpcoming />
@@ -167,6 +169,9 @@ function UpcomingPostsView(props: PostsGridProps) {
             </TabsContent>
             <TabsContent value="pending-schedule" className="flex-grow overflow-hidden mt-4">
                 <PostsGrid {...props} posts={pendingSchedule} isUpcoming />
+            </TabsContent>
+            <TabsContent value="pending-posted" className="flex-grow overflow-hidden mt-4">
+                <PostsGrid {...props} posts={pendingPosted} isUpcoming />
             </TabsContent>
         </Tabs>
     );

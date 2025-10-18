@@ -20,10 +20,10 @@ export type PostType = typeof POST_TYPES[number];
 
 export const POST_STATUSES = [
     "Planned",
+    "Edited",
     "Approved",
     "Scheduled",
     "Posted",
-    "Edited",
     "Missed",
 ] as const;
 

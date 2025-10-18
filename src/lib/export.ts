@@ -2,7 +2,7 @@
 
 import jsPDF from 'jspdf';
 import { utils, writeFile } from 'xlsx';
-import type { Calendar, Post } from './types';
+import type { Calendar, Post, PostStatus } from './types';
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, startOfWeek, endOfWeek, getMonth } from 'date-fns';
 import { InstagramIcon, YouTubeIcon, LinkedInIcon, FacebookIcon, WebsiteIcon, OtherPlatformIcon } from '@/components/icons';
 import { svgToPng } from './svgUtils';
@@ -17,12 +17,13 @@ const platformIconMap: Record<string, (props: React.SVGProps<SVGSVGElement>) => 
     Other: OtherPlatformIcon,
 };
 
-const statusColorMap: Record<Post['status'], string> = {
-    Planned: '#cbd5e1',       // slate-300
-    'On Approval': '#fcd34d', // amber-300
-    Scheduled: '#93c5fd',     // blue-300
-    Posted: '#86efac',        // green-300
-    Edited: '#d8b4fe'         // purple-300
+const statusColorMap: Record<PostStatus, string> = {
+    Planned: '#cbd5e1',    // slate-300
+    Edited: '#d8b4fe',     // purple-300
+    Approved: '#fcd34d',   // amber-300
+    Scheduled: '#93c5fd',  // blue-300
+    Posted: '#86efac',     // green-300
+    Missed: '#fca5a5'      // red-300
 };
 
 export const exportToPDF = async (calendar: Calendar, projectName: string) => {

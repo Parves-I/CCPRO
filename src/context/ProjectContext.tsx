@@ -155,7 +155,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                       Object.keys(calendar.calendarData).forEach(dateStr => {
                           const post = calendar.calendarData[dateStr];
                           const postDate = new Date(dateStr + 'T00:00:00');
-                          if (post.status === 'Planned' && isPast(postDate) && !post.missedReason) {
+                          if (post.status !== 'Posted' && post.status !== 'Missed' && isPast(postDate) && !post.missedReason) {
                               post.status = 'Missed';
                           }
                       });
