@@ -28,7 +28,7 @@ const platformIconMap: Record<string, React.FC<React.SVGProps<SVGSVGElement>>> =
 
 const statusColorMap: Record<PostStatus, string> = {
     Planned: 'bg-gray-400',
-    'On Approval': 'bg-yellow-500',
+    Approved: 'bg-yellow-500',
     Scheduled: 'bg-blue-500',
     Posted: 'bg-green-500',
     Edited: 'bg-purple-500',

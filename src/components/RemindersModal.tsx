@@ -146,7 +146,7 @@ function UpcomingPostsView(props: PostsGridProps) {
 
     const pendingEdits = posts.filter(p => p.status === 'Planned');
     const pendingApproval = posts.filter(p => p.status === 'Edited');
-    const pendingSchedule = posts.filter(p => p.status === 'On Approval');
+    const pendingSchedule = posts.filter(p => p.status === 'Approved');
 
     return (
         <Tabs defaultValue="all" className="flex-grow flex flex-col min-h-0 h-full">
