@@ -79,7 +79,6 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
                     const post = calendar.calendarData[dateStr];
                     const postDate = new Date(dateStr + 'T00:00:00');
 
-                    // Upcoming posts for the next 7 days
                     if (post.status !== 'Posted' && post.status !== 'Missed' && postDate >= today && postDate < nextWeek) {
                         upcoming.push({ ...post, date: dateStr, projectId: project.id, calendarId: calendar.id });
                     }
@@ -98,10 +97,8 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
     }, [isOpen, projects, allProjectData, activeAccount, viewingMonth]);
 
      const handleCloseMissedPost = (projectId: string, calendarId: string, date: string) => {
-        setMissedPosts(prev => prev.map(p => 
-            (p.projectId === projectId && p.calendarId === calendarId && p.date === date)
-            ? { ...p, status: 'Missed' }
-            : p
+        setMissedPosts(prev => prev.filter(p => 
+            !(p.projectId === projectId && p.calendarId === calendarId && p.date === date)
         ));
     };
 
@@ -198,25 +195,9 @@ interface MissedPostsViewProps extends PostsGridProps {
 
 function MissedPostsView(props: MissedPostsViewProps) {
     const { posts, viewingMonth, setViewingMonth, ...rest } = props;
-    const [localPosts, setLocalPosts] = React.useState(posts);
-
-    React.useEffect(() => {
-        setLocalPosts(posts);
-    }, [posts]);
-
-    const handlePostClosed = (projectId: string, calendarId: string, date: string) => {
-        const postIdentifier = `${projectId}-${calendarId}-${date}`;
-        // Update local state to reflect the change immediately
-        setLocalPosts(prev => prev.map(p => 
-            p.projectId === projectId && p.calendarId === calendarId && p.date === date
-            ? { ...p, status: 'Missed' }
-            : p
-        ));
-        rest.onCloseMissedPost?.(projectId, calendarId, date);
-    };
-
-    const needsResolution = localPosts.filter(p => p.status !== 'Missed');
-    const resolutionProvided = localPosts.filter(p => p.status === 'Missed');
+    
+    const needsResolution = posts.filter(p => p.status !== 'Missed');
+    const resolutionProvided = posts.filter(p => p.status === 'Missed');
     
     return (
          <div className="flex flex-col h-full">
@@ -250,7 +231,7 @@ function MissedPostsView(props: MissedPostsViewProps) {
                     <TabsTrigger value="resolution-provided">Resolution Provided <Badge variant="secondary" className="ml-2">{resolutionProvided.length}</Badge></TabsTrigger>
                 </TabsList>
                 <TabsContent value="needs-resolution" className="flex-grow overflow-hidden mt-4">
-                    <PostsGrid posts={needsResolution} isUpcoming={false} onCloseMissedPost={handlePostClosed} {...rest} />
+                    <PostsGrid posts={needsResolution} isUpcoming={false} {...rest} />
                 </TabsContent>
                 <TabsContent value="resolution-provided" className="flex-grow overflow-hidden mt-4">
                     <PostsGrid posts={resolutionProvided} isUpcoming={false} {...rest} />
@@ -312,7 +293,7 @@ function PostsGrid({ posts, getProjectById, updatePostInProject, movePostInProje
 }
 
 function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedPost }: { post: ReminderPost, updatePostInProject: PostsGridProps['updatePostInProject'], movePostInProject: PostsGridProps['movePostInProject'], onCloseMissedPost?: PostsGridProps['onCloseMissedPost'] }) {
-    const [reason, setReason] = React.useState(post.missedReason || '');
+    const [reason, setReason] = React.useState('');
     const [isAlertOpen, setAlertOpen] = React.useState(false);
     
     const isActuallyMissed = isPast(new Date(post.date + 'T00:00:00')) && post.status !== 'Posted';
@@ -328,7 +309,7 @@ function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedP
             return;
         }
         updatePostInProject(post.projectId, post.calendarId, post.date, { 
-            missedReason: post.notes ? `${post.notes}\n\nMissed Reason: ${reason.trim()}` : `Missed Reason: ${reason.trim()}`,
+            notes: post.notes ? `${post.notes}\n\nMissed Reason: ${reason.trim()}` : `Missed Reason: ${reason.trim()}`,
             status: 'Missed' 
         });
         if(onCloseMissedPost) {

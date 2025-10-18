@@ -146,9 +146,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             const newAllProjectData = new Map<string, ProjectData>();
             const allProjects = snapshot.docs.map(docSnap => {
               const data = docSnap.data() as ProjectData;
-              
-              // This is now handled in the Reminders modal logic
-              
               newAllProjectData.set(docSnap.id, data);
               return { ...data, id: docSnap.id, accountId: docSnap.ref.parent.parent?.id } as Project;
             });
@@ -559,7 +556,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (!postToMove) return;
 
     // Clear missed reason and set to planned
-    delete postToMove.missedReason;
+    if (postToMove.missedReason) {
+      delete postToMove.missedReason;
+    }
     postToMove.status = 'Planned';
 
     if(calendar.calendarData[destinationDate]) {
