@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import type { Post, Project } from '@/lib/types';
+import type { Post, Project, PostStatus } from '@/lib/types';
 import { ScrollArea } from './ui/scroll-area';
 import { Bell, Calendar, Check, Edit, FileX } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -230,7 +230,7 @@ function PostCard({ post, updatePostInProject, movePostInProject }: { post: Remi
     const [reason, setReason] = React.useState(post.missedReason || '');
     const [isAlertOpen, setAlertOpen] = React.useState(false);
     
-    const availableStatuses = POST_STATUSES.filter(s => s !== 'Missed' && s !== 'Planned');
+    const availableStatuses = POST_STATUSES.filter(s => s !== 'Missed');
     
     const handleStatusUpdate = (newStatus: string) => {
         updatePostInProject(post.projectId, post.calendarId, post.date, { status: newStatus as Post['status'] });
@@ -263,23 +263,33 @@ function PostCard({ post, updatePostInProject, movePostInProject }: { post: Remi
                  </div>
                 {post.status === 'Missed' ? (
                      <div className='space-y-2'>
+                        <div className="flex items-center gap-2">
+                           <Select onValueChange={handleStatusUpdate} defaultValue={post.status}>
+                               <SelectTrigger>
+                                   <SelectValue placeholder="Update Status" />
+                               </SelectTrigger>
+                               <SelectContent>
+                                   {POST_STATUSES.map(s => <SelectItem key={s} value={s} disabled={s === 'Missed'}>{s}</SelectItem>)}
+                               </SelectContent>
+                           </Select>
+                           <Popover>
+                               <PopoverTrigger asChild>
+                                   <Button variant="outline" size="icon"><Edit className="h-4 w-4"/></Button>
+                               </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                   <CalendarPicker mode="single" onSelect={(newDate) => handleReschedule(newDate)} initialFocus />
+                               </PopoverContent>
+                           </Popover>
+                        </div>
                         <Label htmlFor={`reason-${post.date}`}>Reason for missing</Label>
                         <Textarea id={`reason-${post.date}`} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Awaiting client feedback..."/>
                         <div className='flex gap-2 justify-end'>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button size="sm" variant="outline"><Calendar className="mr-2 h-4 w-4"/> Edit Date</Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                    <CalendarPicker mode="single" onSelect={handleReschedule} initialFocus />
-                                </PopoverContent>
-                            </Popover>
                             <Button size="sm" onClick={handleCloseMissed}><FileX className="mr-2 h-4 w-4"/> Close as Missed</Button>
                         </div>
                      </div>
                 ) : (
                     <div className="flex items-center gap-2">
-                        <Select onValueChange={handleStatusUpdate}>
+                        <Select onValueChange={handleStatusUpdate} defaultValue={post.status}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Update Status" />
                             </SelectTrigger>
@@ -316,3 +326,4 @@ function PostCard({ post, updatePostInProject, movePostInProject }: { post: Remi
 }
 
     
+
