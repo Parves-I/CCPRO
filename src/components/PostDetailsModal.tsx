@@ -129,7 +129,18 @@ export function PostDetailsModal({ isOpen, onClose, date, post }: PostDetailsMod
         color: selectedColor,
         status: status,
     };
+    
+    // Preserve scroll position
+    const calendarGrid = document.querySelector('.overflow-auto');
+    const scrollPos = calendarGrid?.scrollTop || 0;
+    
     updatePost(date, newPost);
+    
+    // Restore scroll position after a short delay to allow for re-render
+    setTimeout(() => {
+        calendarGrid?.scrollTo(0, scrollPos);
+    }, 0);
+
     toast({ title: "Post Saved", description: "Remember to save the project to persist changes."});
     onClose();
   };
