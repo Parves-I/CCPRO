@@ -85,9 +85,8 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
                     }
                     
                     const isForSelectedMonth = getMonth(postDate) === getMonth(viewingMonth) && getYear(postDate) === getYear(viewingMonth);
-                    const isOverdue = isPast(postDate) && post.status !== 'Posted';
-
-                    if (isForSelectedMonth && (isOverdue || post.status === 'Missed')) {
+                    
+                    if (isForSelectedMonth && isPast(postDate) && post.status !== 'Posted') {
                          missed.push({ ...post, date: dateStr, projectId: project.id, calendarId: calendar.id });
                     }
                 }
@@ -99,11 +98,11 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
     }, [isOpen, projects, allProjectData, activeAccount, viewingMonth]);
 
      const handleCloseMissedPost = (projectId: string, calendarId: string, date: string) => {
-        const postToUpdate = missedPosts.find(p => p.projectId === projectId && p.calendarId === calendarId && p.date === date);
-        if (postToUpdate) {
-            const updatedPost = {...postToUpdate, status: 'Missed' as PostStatus};
-            setMissedPosts(prev => prev.map(p => p.date === date && p.projectId === projectId ? updatedPost : p));
-        }
+        setMissedPosts(prev => prev.map(p => 
+            (p.projectId === projectId && p.calendarId === calendarId && p.date === date)
+            ? { ...p, status: 'Missed' }
+            : p
+        ));
     };
 
 
@@ -127,7 +126,7 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
                         </TabsTrigger>
                         <TabsTrigger value="missed">
                             Missed Posts
-                            <Badge variant={missedPosts.filter(p => p.status !== 'Missed' && p.status !== 'Posted').length > 0 ? "destructive" : "secondary"} className="ml-2">{missedPosts.filter(p => p.status !== 'Missed' && p.status !== 'Posted').length}</Badge>
+                            <Badge variant={missedPosts.filter(p => p.status !== 'Missed').length > 0 ? "destructive" : "secondary"} className="ml-2">{missedPosts.filter(p => p.status !== 'Missed').length}</Badge>
                         </TabsTrigger>
                     </TabsList>
                     <TabsContent value="upcoming" className="flex-grow overflow-hidden mt-4">
@@ -200,7 +199,7 @@ interface MissedPostsViewProps extends PostsGridProps {
 function MissedPostsView(props: MissedPostsViewProps) {
     const { posts, viewingMonth, setViewingMonth, ...rest } = props;
 
-    const needsResolution = posts.filter(p => p.status !== 'Posted' && p.status !== 'Missed');
+    const needsResolution = posts.filter(p => p.status !== 'Missed');
     const resolutionProvided = posts.filter(p => p.status === 'Missed');
     
     return (
@@ -262,7 +261,7 @@ function PostsGrid({ posts, getProjectById, updatePostInProject, movePostInProje
                 <Check className="mx-auto h-16 w-16 text-green-500/50" strokeWidth="1" />
                 <h3 className="mt-4 text-xl font-medium text-foreground">All Caught Up!</h3>
                 <p className="mt-1 text-md text-muted-foreground">
-                    You have no {isUpcoming ? 'upcoming' : 'missed'} posts in this category.
+                    You have no {isUpcoming ? 'upcoming' : 'overdue'} posts in this category.
                 </p>
             </div>
         )
@@ -301,7 +300,7 @@ function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedP
     const [isAlertOpen, setAlertOpen] = React.useState(false);
     
     const isActuallyMissed = isPast(new Date(post.date + 'T00:00:00')) && post.status !== 'Posted';
-    const cardStatus = post.status === 'Missed' || isActuallyMissed ? 'Missed' : post.status;
+    const cardStatus = post.status === 'Missed' ? 'Missed' : isActuallyMissed ? 'Missed' : post.status;
     const isResolutionView = post.status === 'Missed';
     
     const handleStatusUpdate = (newStatus: string) => {
@@ -332,7 +331,7 @@ function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedP
         <Card className={cn("flex flex-col", cardStatus === 'Missed' && !isResolutionView && 'bg-red-50 border-red-200', isResolutionView && 'bg-muted/60')}>
             <CardHeader className="flex-row items-start justify-between pb-2">
                  <CardTitle className="text-lg font-bold flex-grow pr-4">{post.title}</CardTitle>
-                 <Badge variant={cardStatus === 'Missed' ? 'destructive' : 'outline'}>{cardStatus}</Badge>
+                 <Badge variant={cardStatus === 'Missed' ? 'destructive' : 'outline'}>{post.status}</Badge>
             </CardHeader>
             <CardContent className="flex-grow space-y-4">
                  <div className="text-sm text-muted-foreground">
@@ -363,8 +362,10 @@ function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedP
                                </PopoverContent>
                            </Popover>
                         </div>
-                        <Label htmlFor={`reason-${post.date}`}>Reason for missing</Label>
-                        <Textarea id={`reason-${post.date}`} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Awaiting client feedback..."/>
+                        <div>
+                            <Label htmlFor={`reason-${post.date}`}>Reason for missing</Label>
+                            <Textarea id={`reason-${post.date}`} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Awaiting client feedback..."/>
+                        </div>
                         <div className='flex gap-2 justify-end'>
                             <Button size="sm" onClick={handleCloseMissed}><FileX className="mr-2 h-4 w-4"/> Close as Missed</Button>
                         </div>
