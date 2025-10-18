@@ -33,6 +33,7 @@ import { Calendar as CalendarPicker } from './ui/calendar';
 import { cn } from '@/lib/utils';
 import { POST_STATUSES } from '@/lib/types';
 import { Textarea } from './ui/textarea';
+import { Label } from './ui/label';
 
 interface ReminderPost extends Post {
     date: string;
@@ -70,6 +71,7 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
             if (!projectData || !projectData.calendars) continue;
 
             for (const calendar of projectData.calendars) {
+                if (!calendar.calendarData) continue;
                 for (const dateStr in calendar.calendarData) {
                     const post = calendar.calendarData[dateStr];
                     const postDate = new Date(dateStr + 'T00:00:00');

@@ -74,6 +74,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [activeProject, setActiveProject] = React.useState<Project | null>(null);
   const [activeProjectData, setActiveProjectData] = React.useState<ProjectData | null>(null);
   const [activeCalendar, setActiveCalendar] = React.useState<Calendar | null>(null);
+  const [isModalClosing, setIsModalClosing] = React.useState(false);
 
   const [filters, setFilters] = React.useState<Filters>({
     status: [],
@@ -431,6 +432,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }
 
   const updateActiveCalendar = (data: Partial<Calendar>) => {
+    if (isModalClosing) return;
     setActiveCalendar(prev => (prev ? { ...prev, ...data } : null));
     setActiveProjectData(prevData => {
       if (!prevData || !activeCalendar) return null;
@@ -588,7 +590,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     deleteProject,
     switchActiveCalendar,
     createCalendar,
-    updateActiveCalendar,
+    updateActiveCalendar: (data: Partial<Calendar>) => {
+        if (isModalClosing) return;
+        setActiveCalendar(prev => (prev ? { ...prev, ...data } : null));
+        setActiveProjectData(prevData => {
+          if (!prevData || !activeCalendar) return null;
+          const updatedCalendars = prevData.calendars.map(c => 
+            c.id === activeCalendar.id ? { ...c, ...data } : c
+          );
+          return { ...prevData, calendars: updatedCalendars };
+        });
+    },
     renameCalendar,
     deleteCalendar,
     updatePost,
