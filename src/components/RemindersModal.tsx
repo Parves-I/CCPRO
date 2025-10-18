@@ -47,7 +47,7 @@ interface RemindersModalProps {
 }
 
 export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
-    const { projects, allProjectData, activeAccount, getProjectById, updatePostInProject } = useProject();
+    const { projects, allProjectData, activeAccount, getProjectById, updatePostInProject, movePostInProject } = useProject();
     const [upcomingPosts, setUpcomingPosts] = React.useState<ReminderPost[]>([]);
     const [missedPosts, setMissedPosts] = React.useState<ReminderPost[]>([]);
 
@@ -115,10 +115,10 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
                         </TabsTrigger>
                     </TabsList>
                     <TabsContent value="upcoming" className="flex-grow overflow-hidden mt-4">
-                       <PostsGrid posts={upcomingPosts} getProjectById={getProjectById} updatePostInProject={updatePostInProject} isUpcoming />
+                       <PostsGrid posts={upcomingPosts} getProjectById={getProjectById} updatePostInProject={updatePostInProject} movePostInProject={movePostInProject} isUpcoming />
                     </TabsContent>
                     <TabsContent value="missed" className="flex-grow overflow-hidden mt-4">
-                        <PostsGrid posts={missedPosts} getProjectById={getProjectById} updatePostInProject={updatePostInProject} />
+                        <PostsGrid posts={missedPosts} getProjectById={getProjectById} updatePostInProject={updatePostInProject} movePostInProject={movePostInProject} />
                     </TabsContent>
                 </Tabs>
                  <DialogFooter className="pt-4 border-t">
@@ -134,10 +134,11 @@ interface PostsGridProps {
     posts: ReminderPost[];
     getProjectById: (id: string) => Project | undefined;
     updatePostInProject: (projectId: string, calendarId: string, date: string, postData: Partial<Post>) => void;
+    movePostInProject: (projectId: string, calendarId: string, sourceDate: string, destinationDate: string) => void;
     isUpcoming?: boolean;
 }
 
-function PostsGrid({ posts, getProjectById, updatePostInProject, isUpcoming = false }: PostsGridProps) {
+function PostsGrid({ posts, getProjectById, updatePostInProject, movePostInProject, isUpcoming = false }: PostsGridProps) {
      if (posts.length === 0) {
         return (
             <div className="text-center py-20 h-full flex flex-col items-center justify-center">
@@ -168,7 +169,7 @@ function PostsGrid({ posts, getProjectById, updatePostInProject, isUpcoming = fa
                         </CardHeader>
                         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {projectPosts.map(post => (
-                                <PostCard key={`${post.projectId}-${post.calendarId}-${post.date}`} post={post} updatePostInProject={updatePostInProject} />
+                                <PostCard key={`${post.projectId}-${post.calendarId}-${post.date}`} post={post} updatePostInProject={updatePostInProject} movePostInProject={movePostInProject} />
                             ))}
                         </CardContent>
                     </Card>
@@ -178,7 +179,7 @@ function PostsGrid({ posts, getProjectById, updatePostInProject, isUpcoming = fa
     )
 }
 
-function PostCard({ post, updatePostInProject }: { post: ReminderPost, updatePostInProject: PostsGridProps['updatePostInProject'] }) {
+function PostCard({ post, updatePostInProject, movePostInProject }: { post: ReminderPost, updatePostInProject: PostsGridProps['updatePostInProject'], movePostInProject: PostsGridProps['movePostInProject'] }) {
     const [reason, setReason] = React.useState(post.missedReason || '');
     const [isAlertOpen, setAlertOpen] = React.useState(false);
     
@@ -203,11 +204,14 @@ function PostCard({ post, updatePostInProject }: { post: ReminderPost, updatePos
             setAlertOpen(true);
             return;
         }
-        updatePostInProject(post.projectId, post.calendarId, post.date, { missedReason: reason.trim(), status: 'Posted' });
+        const updatedNotes = `${post.notes}\n\n**Missed Reason:** ${reason.trim()}`;
+        updatePostInProject(post.projectId, post.calendarId, post.date, { notes: updatedNotes, status: 'Missed' });
     }
     
-    const handleReschedule = () => {
-         updatePostInProject(post.projectId, post.calendarId, post.date, { status: 'Planned' });
+    const handleReschedule = (newDate: Date | undefined) => {
+         if (!newDate) return;
+         const newDateStr = format(newDate, 'yyyy-MM-dd');
+         movePostInProject(post.projectId, post.calendarId, post.date, newDateStr);
     }
 
     return (
@@ -225,7 +229,14 @@ function PostCard({ post, updatePostInProject }: { post: ReminderPost, updatePos
                         <Label htmlFor={`reason-${post.date}`}>Reason for missing</Label>
                         <Textarea id={`reason-${post.date}`} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Awaiting client feedback..."/>
                         <div className='flex gap-2 justify-end'>
-                            <Button size="sm" variant="outline" onClick={handleReschedule}><Redo className="mr-2 h-4 w-4"/> Reschedule to Today</Button>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button size="sm" variant="outline"><Calendar className="mr-2 h-4 w-4"/> Edit Date</Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                    <CalendarPicker mode="single" onSelect={handleReschedule} initialFocus />
+                                </PopoverContent>
+                            </Popover>
                             <Button size="sm" onClick={handleCloseMissed}><FileX className="mr-2 h-4 w-4"/> Close as Missed</Button>
                         </div>
                      </div>
