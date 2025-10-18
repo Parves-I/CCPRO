@@ -1,6 +1,6 @@
 'use client';
 import * as React from 'react';
-import { format, addDays, startOfToday, eachDayOfInterval, isSameDay } from 'date-fns';
+import { format, addDays, startOfToday } from 'date-fns';
 import { useProject } from '@/context/ProjectContext';
 import {
   Dialog,
@@ -24,7 +24,7 @@ import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import type { Post, Project } from '@/lib/types';
 import { ScrollArea } from './ui/scroll-area';
-import { Bell, Calendar, Check, Edit, FileX, Info, Redo } from 'lucide-react';
+import { Bell, Calendar, Check, Edit, FileX } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -76,7 +76,9 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
                     const post = calendar.calendarData[dateStr];
                     const postDate = new Date(dateStr + 'T00:00:00');
 
-                    if (post.status === 'Planned' && postDate >= today && postDate < nextWeek) {
+                    const isUpcoming = post.status !== 'Posted' && post.status !== 'Missed' && postDate >= today && postDate < nextWeek;
+
+                    if (isUpcoming) {
                         upcoming.push({ ...post, date: dateStr, projectId: project.id, calendarId: calendar.id });
                     }
                     if (post.status === 'Missed') {
@@ -89,7 +91,6 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
         setUpcomingPosts(upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
         setMissedPosts(missed.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
     }, [isOpen, projects, allProjectData, activeAccount]);
-
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -115,10 +116,21 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
                         </TabsTrigger>
                     </TabsList>
                     <TabsContent value="upcoming" className="flex-grow overflow-hidden mt-4">
-                       <PostsGrid posts={upcomingPosts} getProjectById={getProjectById} updatePostInProject={updatePostInProject} movePostInProject={movePostInProject} isUpcoming />
+                       <UpcomingPostsView 
+                            posts={upcomingPosts} 
+                            getProjectById={getProjectById} 
+                            updatePostInProject={updatePostInProject} 
+                            movePostInProject={movePostInProject} 
+                        />
                     </TabsContent>
                     <TabsContent value="missed" className="flex-grow overflow-hidden mt-4">
-                        <PostsGrid posts={missedPosts} getProjectById={getProjectById} updatePostInProject={updatePostInProject} movePostInProject={movePostInProject} />
+                        <PostsGrid 
+                            posts={missedPosts} 
+                            getProjectById={getProjectById} 
+                            updatePostInProject={updatePostInProject} 
+                            movePostInProject={movePostInProject} 
+                            isUpcoming={false}
+                        />
                     </TabsContent>
                 </Tabs>
                  <DialogFooter className="pt-4 border-t">
@@ -129,6 +141,36 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
     )
 }
 
+function UpcomingPostsView(props: PostsGridProps) {
+    const { posts, getProjectById, updatePostInProject, movePostInProject } = props;
+
+    const pendingEdits = posts.filter(p => p.status === 'Planned');
+    const pendingApproval = posts.filter(p => p.status === 'Edited');
+    const pendingSchedule = posts.filter(p => p.status === 'On Approval');
+
+    return (
+        <Tabs defaultValue="all" className="flex-grow flex flex-col min-h-0 h-full">
+            <TabsList>
+                <TabsTrigger value="all">All <Badge variant="secondary" className="ml-2">{posts.length}</Badge></TabsTrigger>
+                <TabsTrigger value="pending-edits">Pending Edits <Badge variant="secondary" className="ml-2">{pendingEdits.length}</Badge></TabsTrigger>
+                <TabsTrigger value="pending-approval">Pending Approval <Badge variant="secondary" className="ml-2">{pendingApproval.length}</Badge></TabsTrigger>
+                <TabsTrigger value="pending-schedule">Pending Schedule <Badge variant="secondary" className="ml-2">{pendingSchedule.length}</Badge></TabsTrigger>
+            </TabsList>
+            <TabsContent value="all" className="flex-grow overflow-hidden mt-4">
+                <PostsGrid {...props} posts={posts} isUpcoming />
+            </TabsContent>
+            <TabsContent value="pending-edits" className="flex-grow overflow-hidden mt-4">
+                <PostsGrid {...props} posts={pendingEdits} isUpcoming />
+            </TabsContent>
+            <TabsContent value="pending-approval" className="flex-grow overflow-hidden mt-4">
+                <PostsGrid {...props} posts={pendingApproval} isUpcoming />
+            </TabsContent>
+            <TabsContent value="pending-schedule" className="flex-grow overflow-hidden mt-4">
+                <PostsGrid {...props} posts={pendingSchedule} isUpcoming />
+            </TabsContent>
+        </Tabs>
+    );
+}
 
 interface PostsGridProps {
     posts: ReminderPost[];
@@ -145,7 +187,7 @@ function PostsGrid({ posts, getProjectById, updatePostInProject, movePostInProje
                 <Check className="mx-auto h-16 w-16 text-green-500/50" strokeWidth="1" />
                 <h3 className="mt-4 text-xl font-medium text-foreground">All Caught Up!</h3>
                 <p className="mt-1 text-md text-muted-foreground">
-                    You have no {isUpcoming ? 'upcoming' : 'missed'} posts.
+                    You have no {isUpcoming ? 'upcoming' : 'missed'} posts in this category.
                 </p>
             </div>
         )
@@ -189,22 +231,12 @@ function PostCard({ post, updatePostInProject, movePostInProject }: { post: Remi
         updatePostInProject(post.projectId, post.calendarId, post.date, { status: newStatus as Post['status'] });
     }
 
-    const handleDateUpdate = (newDate: Date | undefined) => {
-        if (!newDate) return;
-        
-        // This is complex because we need to move the post in the other project's data
-        // For now, we will just update the status and let it be moved on next load
-        // A more robust solution would involve a dedicated backend function.
-        const newStatus = post.status === 'Missed' ? 'Planned' : post.status;
-        updatePostInProject(post.projectId, post.calendarId, post.date, { status: newStatus });
-    }
-
     const handleCloseMissed = () => {
         if (!reason.trim()) {
             setAlertOpen(true);
             return;
         }
-        const updatedNotes = `${post.notes}\n\n**Missed Reason:** ${reason.trim()}`;
+        const updatedNotes = `${post.notes || ''}\n\n**Missed Reason:** ${reason.trim()}`.trim();
         updatePostInProject(post.projectId, post.calendarId, post.date, { notes: updatedNotes, status: 'Missed' });
     }
     
@@ -254,8 +286,8 @@ function PostCard({ post, updatePostInProject, movePostInProject }: { post: Remi
                             <PopoverTrigger asChild>
                                 <Button variant="outline" size="icon"><Edit className="h-4 w-4"/></Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                                <CalendarPicker mode="single" onSelect={handleDateUpdate} initialFocus />
+                             <PopoverContent className="w-auto p-0">
+                                <CalendarPicker mode="single" onSelect={(newDate) => handleReschedule(newDate)} initialFocus />
                             </PopoverContent>
                         </Popover>
                     </div>
@@ -277,3 +309,5 @@ function PostCard({ post, updatePostInProject, movePostInProject }: { post: Remi
         </Card>
     )
 }
+
+    
