@@ -34,6 +34,7 @@ import { cn } from '@/lib/utils';
 import { SidebarFooter, SidebarSeparator } from './ui/sidebar';
 import { ChangeHistoryModal } from './ChangeHistoryModal';
 import type { Project } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
 
 export function ProjectSidebar() {
   const { projects, activeProject, setActiveProject, createProject, updateProject, deleteProject, loading, activeAccount } = useProject();
@@ -41,9 +42,13 @@ export function ProjectSidebar() {
   const [isHistoryOpen, setHistoryOpen] = React.useState(false);
   const [newProjectName, setNewProjectName] = React.useState('');
   const [searchTerm, setSearchTerm] = React.useState('');
+  const { toast } = useToast();
 
   const handleCreateProject = async () => {
-    if (!activeAccount) return;
+    if (!activeAccount) {
+        toast({title: 'No Account Selected', description: 'Please select or create an account first.', variant: 'destructive'});
+        return;
+    };
     await createProject(newProjectName, activeAccount.id);
     setNewProjectName('');
     setCreateOpen(false);

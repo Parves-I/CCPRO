@@ -14,9 +14,12 @@ import {
   query,
   onSnapshot,
   collectionGroup,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {nanoid} from 'nanoid';
+
+const LAST_ACCOUNT_ID_KEY = 'collabcal-last-account-id';
 
 interface Filters {
     status: PostStatus[];
@@ -79,27 +82,32 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   // Initial data fetch and listeners setup
   React.useEffect(() => {
     setInitializing(true);
+    const lastUsedAccountId = localStorage.getItem(LAST_ACCOUNT_ID_KEY);
 
     const unsubscribeAccounts = onSnapshot(accountsCollectionRef, 
       (snapshot) => {
         const fetchedAccounts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Account));
         setAccounts(fetchedAccounts);
         
-        if (!activeAccount && fetchedAccounts.length > 0) {
-            setActiveAccount(fetchedAccounts[0]);
+        if (fetchedAccounts.length > 0) {
+            const lastAccount = lastUsedAccountId ? fetchedAccounts.find(a => a.id === lastUsedAccountId) : null;
+            if (lastAccount) {
+                setActiveAccount(lastAccount);
+            } else if (!activeAccount) {
+                setActiveAccount(fetchedAccounts[0]);
+            }
         } else if (activeAccount && !fetchedAccounts.some(a => a.id === activeAccount.id)) {
-            setActiveAccount(fetchedAccounts[0] || null);
+            setActiveAccount(null);
         }
         
         // This is a one-time migration for old data structure
-        if (snapshot.docs.length === 0) {
+        if (snapshot.docs.length === 0 && !localStorage.getItem('migration-checked')) {
             console.log("No accounts found, attempting to migrate old projects...");
+            localStorage.setItem('migration-checked', 'true');
             (async () => {
                 const oldProjectsSnapshot = await getDocs(collection(db, 'projects'));
                 if(oldProjectsSnapshot.empty) {
-                    console.log("No old projects to migrate. Creating default 'Socials' account.");
-                    const newAccountRef = await addDoc(accountsCollectionRef, { name: 'Socials' });
-                    // The onSnapshot listener will then pick this up.
+                    console.log("No old projects to migrate.");
                     setInitializing(false);
                     return;
                 }
@@ -110,13 +118,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
                 oldProjectsSnapshot.forEach(oldDoc => {
                     const newProjectRef = doc(db, 'accounts', newAccount.id, 'projects', oldDoc.id);
-                    batch.set(newProjectRef, oldDoc.data());
+                    batch.set(newProjectRef, {...oldDoc.data(), lastModified: serverTimestamp()});
                     batch.delete(oldDoc.ref);
                 });
 
                 await batch.commit();
                 console.log("Migration complete.");
-                // The snapshot listener will pick up the new account.
             })();
         }
       }, 
@@ -131,6 +138,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const unsubscribeProjects = onSnapshot(projectsQuery, 
         (snapshot) => {
             const allProjects = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, accountId: doc.ref.parent.parent?.id } as Project));
+            
+            allProjects.sort((a, b) => {
+                const dateA = a.lastModified ? (a.lastModified as any).seconds || new Date(a.lastModified).getTime() / 1000 : 0;
+                const dateB = b.lastModified ? (b.lastModified as any).seconds || new Date(b.lastModified).getTime() / 1000 : 0;
+                return dateB - dateA;
+            });
+            
             setProjects(allProjects);
             setInitializing(false);
         },
@@ -145,11 +159,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       unsubscribeAccounts();
       unsubscribeProjects();
     };
-  }, [toast, activeAccount]);
+  }, [toast]);
 
 
-  // Effect to handle active account change
+  // Effect to handle active account change and save to localStorage
   React.useEffect(() => {
+    if (activeAccount) {
+      localStorage.setItem(LAST_ACCOUNT_ID_KEY, activeAccount.id);
+    }
     setActiveProject(null);
     setActiveProjectData(null);
     setActiveCalendar(null);
@@ -203,7 +220,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
         const docRef = await addDoc(accountsCollectionRef, { name });
-        // The snapshot listener will update the state
+        setActiveAccount({id: docRef.id, name});
         toast({ title: 'Success', description: `Account "${name}" created.`});
     } catch (error) {
         console.error('Error creating account:', error);
@@ -268,14 +285,16 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         endDate: '',
         calendarData: {},
       };
-      const initialData: ProjectData = {
+      const initialData: Omit<ProjectData, 'name'> & { name: string, lastModified: any } = {
         name,
         calendars: [newCalendar],
         activeCalendarId: newCalendar.id,
+        lastModified: serverTimestamp(),
       };
       const projectCollectionRef = collection(db, 'accounts', accountId, 'projects');
       const docRef = await addDoc(projectCollectionRef, initialData);
-      const newProject = { id: docRef.id, name, accountId };
+      
+      const newProject = { id: docRef.id, name, accountId, lastModified: new Date() };
       setActiveProject(newProject);
       toast({ title: 'Success', description: `Project "${name}" created.` });
     } catch (error) {
@@ -295,7 +314,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     const projectDoc = doc(db, 'accounts', accountId, 'projects', id);
     try {
-      await updateDoc(projectDoc, { name });
+      await updateDoc(projectDoc, { name, lastModified: serverTimestamp() });
       toast({ title: 'Success', description: 'Project updated.' });
     } catch (error) {
       console.error('Error updating project:', error);
@@ -436,8 +455,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       const projectRef = doc(db, 'accounts', activeAccount.id, 'projects', activeProject.id);
       
       const batch = writeBatch(db);
-      // We must set the entire project data, not just parts of it
-      batch.set(projectRef, activeProjectData);
+      
+      const projectDataToSave = { ...activeProjectData, lastModified: serverTimestamp() };
+      batch.set(projectRef, projectDataToSave);
       
       const logsCollectionRef = collection(db, 'accounts', activeAccount.id, 'projects', activeProject.id, 'logs');
       const ip = 'Unknown'; // Can't get IP on client side easily

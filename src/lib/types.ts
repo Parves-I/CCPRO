@@ -60,6 +60,10 @@ export interface Project {
   id: string;
   name: string;
   accountId: string;
+  lastModified: {
+    seconds: number;
+    nanoseconds: number;
+  } | Date;
 }
 
 export interface Calendar {
@@ -74,4 +78,5 @@ export interface ProjectData {
   name: string;
   calendars: Calendar[];
   activeCalendarId: string | null;
+  lastModified: Date;
 }
