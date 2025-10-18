@@ -90,6 +90,9 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
 
                     if (isMissedCandidate) {
                          missed.push({ ...post, date: dateStr, projectId: project.id, calendarId: calendar.id, status: post.status === 'Missed' ? 'Missed' : post.status });
+                    } else if (post.status === 'Missed' && getMonth(postDate) === getMonth(viewingMonth) && getYear(postDate) === getYear(viewingMonth)) {
+                        // Also include posts already marked as missed for the month
+                        missed.push({ ...post, date: dateStr, projectId: project.id, calendarId: calendar.id });
                     }
                 }
             }
@@ -297,8 +300,8 @@ function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedP
     const [reason, setReason] = React.useState(post.missedReason || '');
     const [isAlertOpen, setAlertOpen] = React.useState(false);
     
-    const isMissed = isPast(new Date(post.date + 'T00:00:00')) && post.status !== 'Posted';
-    const cardStatus = post.status === 'Missed' || isMissed ? 'Missed' : post.status;
+    const isActuallyMissed = isPast(new Date(post.date + 'T00:00:00')) && post.status !== 'Posted';
+    const cardStatus = post.status === 'Missed' || isActuallyMissed ? 'Missed' : post.status;
     
     const handleStatusUpdate = (newStatus: string) => {
         updatePostInProject(post.projectId, post.calendarId, post.date, { status: newStatus as Post['status'] });
@@ -320,6 +323,9 @@ function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedP
          if (!newDate) return;
          const newDateStr = format(newDate, 'yyyy-MM-dd');
          movePostInProject(post.projectId, post.calendarId, post.date, newDateStr);
+         if(onCloseMissedPost) {
+            onCloseMissedPost(post.projectId, post.calendarId, post.date);
+         }
     }
 
     return (
@@ -348,7 +354,7 @@ function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedP
                                    <Button variant="outline" size="icon"><Edit className="h-4 w-4"/></Button>
                                </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0">
-                                   <CalendarPicker mode="single" onSelect={(newDate) => { handleReschedule(newDate); if(onCloseMissedPost) { onCloseMissedPost(post.projectId, post.calendarId, post.date); } }} initialFocus />
+                                   <CalendarPicker mode="single" onSelect={(newDate) => { handleReschedule(newDate); }} initialFocus />
                                </PopoverContent>
                            </Popover>
                         </div>
