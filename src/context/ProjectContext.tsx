@@ -147,21 +147,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             const allProjects = snapshot.docs.map(docSnap => {
               const data = docSnap.data() as ProjectData;
               
-              // Automatically update post status to 'Missed'
-              const today = startOfToday();
-              if (data.calendars) {
-                data.calendars.forEach(calendar => {
-                    if (calendar.calendarData) {
-                      Object.keys(calendar.calendarData).forEach(dateStr => {
-                          const post = calendar.calendarData[dateStr];
-                          const postDate = new Date(dateStr + 'T00:00:00');
-                          if (post.status !== 'Posted' && post.status !== 'Missed' && isPast(postDate) && !post.missedReason) {
-                              post.status = 'Missed';
-                          }
-                      });
-                    }
-                });
-              }
+              // Automatically update post status to 'Missed' - Now handled in Reminders modal
               
               newAllProjectData.set(docSnap.id, data);
               return { ...data, id: docSnap.id, accountId: docSnap.ref.parent.parent?.id } as Project;
@@ -542,31 +528,20 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
     const projectRef = doc(db, 'accounts', activeAccount.id, 'projects', projectId);
     
-    // This is a simplified, non-realtime update for the reminders modal.
-    // It fetches, updates, and saves.
-    getDocs(query(collection(db, 'accounts', activeAccount.id, 'projects')))
-        .then(snapshot => {
-            const projectDoc = snapshot.docs.find(d => d.id === projectId);
-            if (!projectDoc) return;
+    const projectData = allProjectData.get(projectId);
+    if (!projectData) return;
 
-            const projectData = projectDoc.data() as ProjectData;
-            const calendar = projectData.calendars.find(c => c.id === calendarId);
-            if (!calendar) return;
+    const calendar = projectData.calendars.find(c => c.id === calendarId);
+    if (!calendar) return;
 
-            const post = calendar.calendarData[date];
-            if (!post) return;
-            
-            // If moving the post to a new date
-            if(postData.status && postData.status !== 'Missed' && post.status === 'Missed') {
-                const newDate = format(new Date(), 'yyyy-MM-dd');
-                delete calendar.calendarData[date];
-                calendar.calendarData[newDate] = {...post, ...postData};
-            } else {
-                calendar.calendarData[date] = { ...post, ...postData };
-            }
-
-            updateDoc(projectRef, { calendars: projectData.calendars, lastModified: serverTimestamp() });
-        });
+    const post = calendar.calendarData[date];
+    if (!post) return;
+    
+    calendar.calendarData[date] = { ...post, ...postData };
+    
+    const updatedCalendars = projectData.calendars.map(c => c.id === calendarId ? calendar : c);
+    
+    updateDoc(projectRef, { calendars: updatedCalendars, lastModified: serverTimestamp() });
   };
 
   const movePostInProject = (projectId: string, calendarId: string, sourceDate: string, destinationDate: string) => {
@@ -574,34 +549,30 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       
     const projectRef = doc(db, 'accounts', activeAccount.id, 'projects', projectId);
 
-    getDocs(query(collection(db, 'accounts', activeAccount.id, 'projects')))
-        .then(snapshot => {
-            const projectDoc = snapshot.docs.find(d => d.id === projectId);
-            if (!projectDoc) return;
+    const projectData = allProjectData.get(projectId);
+    if (!projectData) return;
             
-            const projectData = projectDoc.data() as ProjectData;
-            const calendar = projectData.calendars.find(c => c.id === calendarId);
-            if (!calendar) return;
+    const calendar = projectData.calendars.find(c => c.id === calendarId);
+    if (!calendar) return;
 
-            const postToMove = calendar.calendarData[sourceDate];
-            if (!postToMove) return;
+    const postToMove = calendar.calendarData[sourceDate];
+    if (!postToMove) return;
 
-            // Clear missed reason and set to planned
-            delete postToMove.missedReason;
-            postToMove.status = 'Planned';
+    // Clear missed reason and set to planned
+    delete postToMove.missedReason;
+    postToMove.status = 'Planned';
 
-            // If there's a post at the destination, we can't move. In a real app, we'd confirm with user.
-            // For now, we'll just block it.
-            if(calendar.calendarData[destinationDate]) {
-                toast({ title: 'Cannot Reschedule', description: 'There is already a post on the selected date.', variant: 'destructive'});
-                return;
-            }
+    if(calendar.calendarData[destinationDate]) {
+        toast({ title: 'Cannot Reschedule', description: 'There is already a post on the selected date.', variant: 'destructive'});
+        return;
+    }
 
-            delete calendar.calendarData[sourceDate];
-            calendar.calendarData[destinationDate] = postToMove;
+    delete calendar.calendarData[sourceDate];
+    calendar.calendarData[destinationDate] = postToMove;
 
-            updateDoc(projectRef, { calendars: projectData.calendars, lastModified: serverTimestamp() });
-        });
+    const updatedCalendars = projectData.calendars.map(c => c.id === calendarId ? calendar : c);
+
+    updateDoc(projectRef, { calendars: updatedCalendars, lastModified: serverTimestamp() });
   };
 
   const value = {
