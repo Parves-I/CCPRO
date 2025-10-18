@@ -31,7 +31,8 @@ const statusColorMap: Record<PostStatus, string> = {
     'On Approval': 'bg-yellow-500',
     Scheduled: 'bg-blue-500',
     Posted: 'bg-green-500',
-    Edited: 'bg-purple-500'
+    Edited: 'bg-purple-500',
+    Missed: 'bg-red-500',
 };
 
 
@@ -104,7 +105,8 @@ export function CalendarDay({ day, post, isCurrentMonth, isFilteredOut }: Calend
           post && !isFilteredOut ? 'hover:shadow-lg hover:-translate-y-1' : 'hover:bg-accent',
           isDragging && 'opacity-40 ring-2 ring-primary ring-offset-2 scale-95',
           isDragOver && 'ring-2 ring-primary bg-primary/10',
-          isFilteredOut && 'opacity-50 bg-muted/30'
+          isFilteredOut && 'opacity-50 bg-muted/30',
+          post?.status === 'Missed' && 'bg-red-50 border-red-200'
         )}
         style={{
             borderLeft: `5px solid ${post?.color === 'transparent' ? 'hsl(var(--border))' : post?.color}`,

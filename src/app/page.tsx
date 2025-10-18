@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { CalendarIcon, Loader2, User } from 'lucide-react';
+import { CalendarIcon, Loader2, User, Bell } from 'lucide-react';
 import {
   Sidebar,
   SidebarHeader,
@@ -19,9 +19,11 @@ import { FilterControls } from '@/components/FilterControls';
 import { Card } from '@/components/ui/card';
 import { CalendarSelector } from '@/components/CalendarSelector';
 import { AccountSelector } from '@/components/AccountSelector';
+import { RemindersModal } from '@/components/RemindersModal';
 
 export default function Home() {
   const { loading, activeProject, activeCalendar, initializing, accounts } = useProject();
+  const [isRemindersOpen, setRemindersOpen] = React.useState(false);
 
   const MainContent = () => {
     if (initializing) {
@@ -54,7 +56,13 @@ export default function Home() {
       return (
         <div className="flex flex-col h-full">
           <header className="flex justify-end items-center p-4 sm:p-6 lg:p-8 relative z-10">
-            <AccountSelector />
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setRemindersOpen(true)}>
+                <Bell className="mr-2 h-4 w-4" />
+                Reminders
+              </Button>
+              <AccountSelector />
+            </div>
           </header>
           <div className="flex-grow flex flex-col items-center justify-center text-center p-4 -mt-24">
             <div className="flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 my-6 shadow-md">
@@ -93,8 +101,12 @@ export default function Home() {
             <CalendarSelector />
           </div>
           <div className="flex items-center gap-4">
-            <AccountSelector />
             {loading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
+             <Button variant="outline" onClick={() => setRemindersOpen(true)}>
+                <Bell className="mr-2 h-4 w-4" />
+                Reminders
+              </Button>
+            <AccountSelector />
           </div>
         </header>
         <Card className="p-4 mb-6 shadow-sm">
@@ -164,6 +176,7 @@ export default function Home() {
           <MainContent />
         </main>
       </SidebarInset>
+      <RemindersModal isOpen={isRemindersOpen} onClose={() => setRemindersOpen(false)} />
     </SidebarProvider>
   );
 }

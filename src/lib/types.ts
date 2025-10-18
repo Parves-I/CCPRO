@@ -24,6 +24,7 @@ export const POST_STATUSES = [
     "Scheduled",
     "Posted",
     "Edited",
+    "Missed",
 ] as const;
 
 export type PostStatus = typeof POST_STATUSES[number];
@@ -47,6 +48,7 @@ export interface Post {
   platforms: string[]; // Can include Platform or custom strings
   color: ThemeColor;
   status: PostStatus;
+  missedReason?: string; // New field for missed posts
 }
 
 export type CalendarData = Record<string, Post>; // Key is "YYYY-MM-DD"

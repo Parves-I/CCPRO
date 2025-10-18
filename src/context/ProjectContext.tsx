@@ -18,6 +18,7 @@ import {
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {nanoid} from 'nanoid';
+import { isPast, format, startOfToday } from 'date-fns';
 
 const LAST_ACCOUNT_ID_KEY = 'collabcal-last-account-id';
 
@@ -56,6 +57,8 @@ interface ProjectContextType {
   movePost: (sourceDate: string, destinationDate: string) => void;
   saveProjectToDb: () => Promise<void>;
   importCalendarData: (data: Partial<Calendar>) => void;
+  updatePostInProject: (projectId: string, calendarId: string, date: string, postData: Partial<Post>) => void;
+  getProjectById: (projectId: string) => Project | undefined;
 }
 
 const ProjectContext = React.createContext<ProjectContextType | undefined>(undefined);
@@ -66,6 +69,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [accounts, setAccounts] = React.useState<Account[]>([]);
   const [activeAccount, setActiveAccount] = React.useState<Account | null>(null);
   const [projects, setProjects] = React.useState<Project[]>([]);
+  const [allProjectData, setAllProjectData] = React.useState<Map<string, ProjectData>>(new Map());
   const [activeProject, setActiveProject] = React.useState<Project | null>(null);
   const [activeProjectData, setActiveProjectData] = React.useState<ProjectData | null>(null);
   const [activeCalendar, setActiveCalendar] = React.useState<Calendar | null>(null);
@@ -90,19 +94,19 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         setAccounts(fetchedAccounts);
         
         if (fetchedAccounts.length > 0) {
-            const lastAccount = lastUsedAccountId ? fetchedAccounts.find(a => a.id === lastUsedAccountId) : null;
-            if (lastAccount) {
-                setActiveAccount(lastAccount);
-            } else if (!activeAccount) {
-                setActiveAccount(fetchedAccounts[0]);
+            const accountToSet = lastUsedAccountId 
+                ? (fetchedAccounts.find(a => a.id === lastUsedAccountId) || fetchedAccounts[0])
+                : fetchedAccounts[0];
+            
+            if (activeAccount?.id !== accountToSet.id) {
+                setActiveAccount(accountToSet);
             }
-        } else if (activeAccount && !fetchedAccounts.some(a => a.id === activeAccount.id)) {
+        } else if (activeAccount) {
             setActiveAccount(null);
         }
         
-        // This is a one-time migration for old data structure
         if (snapshot.docs.length === 0 && !localStorage.getItem('migration-checked')) {
-            console.log("No accounts found, attempting to migrate old projects...");
+            console.log("No accounts found, checking for old projects to migrate...");
             localStorage.setItem('migration-checked', 'true');
             (async () => {
                 const oldProjectsSnapshot = await getDocs(collection(db, 'projects'));
@@ -113,11 +117,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                 }
 
                 const newAccountRef = await addDoc(accountsCollectionRef, { name: 'Socials' });
-                const newAccount = { id: newAccountRef.id, name: 'Socials' };
                 const batch = writeBatch(db);
 
                 oldProjectsSnapshot.forEach(oldDoc => {
-                    const newProjectRef = doc(db, 'accounts', newAccount.id, 'projects', oldDoc.id);
+                    const newProjectRef = doc(db, 'accounts', newAccountRef.id, 'projects', oldDoc.id);
                     batch.set(newProjectRef, {...oldDoc.data(), lastModified: serverTimestamp()});
                     batch.delete(oldDoc.ref);
                 });
@@ -137,15 +140,34 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const projectsQuery = query(collectionGroup(db, 'projects'));
     const unsubscribeProjects = onSnapshot(projectsQuery, 
         (snapshot) => {
-            const allProjects = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, accountId: doc.ref.parent.parent?.id } as Project));
+            const newAllProjectData = new Map<string, ProjectData>();
+            const allProjects = snapshot.docs.map(docSnap => {
+              const data = docSnap.data() as ProjectData;
+              
+              // Automatically update post status to 'Missed'
+              const today = startOfToday();
+              data.calendars.forEach(calendar => {
+                  Object.keys(calendar.calendarData).forEach(dateStr => {
+                      const post = calendar.calendarData[dateStr];
+                      const postDate = new Date(dateStr + 'T00:00:00');
+                      if (post.status === 'Planned' && isPast(postDate) && !post.missedReason) {
+                          post.status = 'Missed';
+                      }
+                  });
+              });
+              
+              newAllProjectData.set(docSnap.id, data);
+              return { ...data, id: docSnap.id, accountId: docSnap.ref.parent.parent?.id } as Project;
+            });
             
             allProjects.sort((a, b) => {
-                const dateA = a.lastModified ? (a.lastModified as any).seconds || new Date(a.lastModified).getTime() / 1000 : 0;
-                const dateB = b.lastModified ? (b.lastModified as any).seconds || new Date(b.lastModified).getTime() / 1000 : 0;
+                const dateA = a.lastModified ? (a.lastModified as any).seconds * 1000 : 0;
+                const dateB = b.lastModified ? (b.lastModified as any).seconds * 1000 : 0;
                 return dateB - dateA;
             });
             
             setProjects(allProjects);
+            setAllProjectData(newAllProjectData);
             setInitializing(false);
         },
         (error) => {
@@ -159,31 +181,34 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       unsubscribeAccounts();
       unsubscribeProjects();
     };
-  }, [toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   // Effect to handle active account change and save to localStorage
   React.useEffect(() => {
     if (activeAccount) {
       localStorage.setItem(LAST_ACCOUNT_ID_KEY, activeAccount.id);
+      
+      const firstProjectInAccount = projects.find(p => p.accountId === activeAccount.id);
+       if (!activeProject || activeProject.accountId !== activeAccount.id) {
+          setActiveProject(firstProjectInAccount || null);
+       }
+    } else {
+        setActiveProject(null);
     }
-    setActiveProject(null);
-    setActiveProjectData(null);
-    setActiveCalendar(null);
-  }, [activeAccount]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAccount, projects]);
 
   // Effect to fetch project data when active project changes
   React.useEffect(() => {
     if (activeProject && activeAccount) {
       setLoading(true);
-      setActiveProjectData(null);
-      setActiveCalendar(null);
-      const projectDocRef = doc(db, 'accounts', activeAccount.id, 'projects', activeProject.id);
-      
-      const unsubscribe = onSnapshot(projectDocRef, (doc) => {
-        if (doc.exists()) {
-          let data = doc.data() as ProjectData;
-          if (!data.calendars || data.calendars.length === 0) {
+      const data = allProjectData.get(activeProject.id);
+
+      if (data) {
+        let projectData = {...data};
+         if (!projectData.calendars || projectData.calendars.length === 0) {
             const newCalendar: Calendar = {
               id: nanoid(),
               name: 'Main Calendar',
@@ -191,29 +216,23 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
               endDate: '',
               calendarData: {},
             };
-            data.calendars = [newCalendar];
-            data.activeCalendarId = newCalendar.id;
+            projectData.calendars = [newCalendar];
+            projectData.activeCalendarId = newCalendar.id;
           }
-          setActiveProjectData(data);
-          const calendarToActivate = data.calendars.find(c => c.id === data.activeCalendarId) || data.calendars[0];
-          setActiveCalendar(calendarToActivate);
-        } else {
-          // This can happen if project is deleted from another client
-          setActiveProject(null);
-        }
-        setLoading(false);
-      }, (error) => {
-        console.error('Error fetching project data:', error);
-        toast({ title: 'Error', description: 'Failed to load project data.', variant: 'destructive' });
-        setLoading(false);
-      });
+        setActiveProjectData(projectData);
+        const calendarToActivate = projectData.calendars.find(c => c.id === projectData.activeCalendarId) || projectData.calendars[0];
+        setActiveCalendar(calendarToActivate);
 
-      return () => unsubscribe();
+      } else {
+         setActiveProjectData(null);
+         setActiveCalendar(null);
+      }
+      setLoading(false);
     } else {
       setActiveProjectData(null);
       setActiveCalendar(null);
     }
-  }, [activeProject, activeAccount, toast]);
+  }, [activeProject, activeAccount, allProjectData]);
 
   const createAccount = async (name: string) => {
     if (!name.trim()) return;
@@ -236,7 +255,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const accountDoc = doc(db, 'accounts', id);
     try {
         await updateDoc(accountDoc, { name });
-        // The snapshot listener will update the state
         toast({ title: 'Success', description: 'Account renamed.' });
     } catch (error) {
         console.error('Error renaming account:', error);
@@ -285,7 +303,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         endDate: '',
         calendarData: {},
       };
-      const initialData: Omit<ProjectData, 'name'> & { name: string, lastModified: any } = {
+      const initialData: Omit<ProjectData, 'name' | 'lastModified'> & { name: string, lastModified: any } = {
         name,
         calendars: [newCalendar],
         activeCalendarId: newCalendar.id,
@@ -294,7 +312,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       const projectCollectionRef = collection(db, 'accounts', accountId, 'projects');
       const docRef = await addDoc(projectCollectionRef, initialData);
       
-      const newProject = { id: docRef.id, name, accountId, lastModified: new Date() };
+      const newProject = { ...initialData, id: docRef.id, accountId, lastModified: new Date() } as Project;
       setActiveProject(newProject);
       toast({ title: 'Success', description: `Project "${name}" created.` });
     } catch (error) {
@@ -457,7 +475,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       const batch = writeBatch(db);
       
       const projectDataToSave = { ...activeProjectData, lastModified: serverTimestamp() };
-      batch.set(projectRef, projectDataToSave);
+      batch.set(projectRef, projectDataToSave, {merge: true});
       
       const logsCollectionRef = collection(db, 'accounts', activeAccount.id, 'projects', activeProject.id, 'logs');
       const ip = 'Unknown'; // Can't get IP on client side easily
@@ -504,8 +522,44 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       endDate: data.endDate,
       calendarData: calendarData,
     });
-    toast({ title: 'Import Successful', description: 'Data has been loaded. Click "Save" to persist changes.' });
+    toast({ title: 'Import Successful', description: 'Data has been loaded. Click "Save" to persist.' });
   }
+
+  const getProjectById = (projectId: string) => {
+    return projects.find(p => p.id === projectId);
+  }
+
+  const updatePostInProject = (projectId: string, calendarId: string, date: string, postData: Partial<Post>) => {
+    if (!activeAccount) return;
+
+    const projectRef = doc(db, 'accounts', activeAccount.id, 'projects', projectId);
+    
+    // This is a simplified, non-realtime update for the reminders modal.
+    // It fetches, updates, and saves.
+    getDocs(query(collection(db, 'accounts', activeAccount.id, 'projects')))
+        .then(snapshot => {
+            const projectDoc = snapshot.docs.find(d => d.id === projectId);
+            if (!projectDoc) return;
+
+            const projectData = projectDoc.data() as ProjectData;
+            const calendar = projectData.calendars.find(c => c.id === calendarId);
+            if (!calendar) return;
+
+            const post = calendar.calendarData[date];
+            if (!post) return;
+            
+            // If moving the post to a new date
+            if(postData.status && postData.status !== 'Missed' && post.status === 'Missed') {
+                const newDate = format(new Date(), 'yyyy-MM-dd');
+                delete calendar.calendarData[date];
+                calendar.calendarData[newDate] = {...post, ...postData};
+            } else {
+                calendar.calendarData[date] = { ...post, ...postData };
+            }
+
+            updateDoc(projectRef, { calendars: projectData.calendars, lastModified: serverTimestamp() });
+        });
+  };
 
   const value = {
     initializing,
@@ -513,6 +567,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     accounts,
     activeAccount,
     projects,
+    allProjectData,
     activeProject,
     activeProjectData,
     activeCalendar,
@@ -536,6 +591,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     movePost,
     saveProjectToDb,
     importCalendarData,
+    updatePostInProject,
+    getProjectById,
   };
 
   return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;

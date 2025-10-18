@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Trash2, Loader2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useProject } from '@/context/ProjectContext';
 import type { Post, Platform, PostStatus } from '@/lib/types';
@@ -59,7 +59,12 @@ export function PostDetailsModal({ isOpen, onClose, date, post }: PostDetailsMod
   const [otherPlatformName, setOtherPlatformName] = React.useState('');
   const [selectedColor, setSelectedColor] = React.useState(THEME_COLORS[0]);
   const [status, setStatus] = React.useState<PostStatus>('Planned');
-  
+  const [isModalOpenInternal, setIsModalOpenInternal] = React.useState(isOpen);
+
+  React.useEffect(() => {
+    setIsModalOpenInternal(isOpen);
+  }, [isOpen]);
+
   React.useEffect(() => {
     if (isOpen) {
       setTitle(post?.title || '');
@@ -137,9 +142,11 @@ export function PostDetailsModal({ isOpen, onClose, date, post }: PostDetailsMod
     updatePost(date, newPost);
     
     // Restore scroll position after a short delay to allow for re-render
-    requestAnimationFrame(() => {
-        calendarGrid?.scrollTo(0, scrollPos);
-    });
+    setTimeout(() => {
+        requestAnimationFrame(() => {
+            calendarGrid?.scrollTo(0, scrollPos);
+        });
+    }, 100);
 
     toast({ title: "Post Saved", description: "Remember to save the project to persist changes."});
     onClose();
@@ -153,7 +160,7 @@ export function PostDetailsModal({ isOpen, onClose, date, post }: PostDetailsMod
 
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isModalOpenInternal} onOpenChange={(open) => { if(!open) onClose(); setIsModalOpenInternal(open);}}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-8">
         <DialogHeader>
           <div className="flex justify-between items-start">
@@ -269,7 +276,6 @@ export function PostDetailsModal({ isOpen, onClose, date, post }: PostDetailsMod
         <DialogFooter className="pt-4 border-t">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
             Save Post
           </Button>
         </DialogFooter>
