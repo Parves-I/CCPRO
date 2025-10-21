@@ -18,11 +18,11 @@ import { useProject } from '@/context/ProjectContext';
 import { FilterControls } from '@/components/FilterControls';
 import { Card } from '@/components/ui/card';
 import { CalendarSelector } from '@/components/CalendarSelector';
-import { AccountSelector } from '@/components/AccountSelector';
+import { TeammateSelector } from '@/components/TeammateSelector';
 import { RemindersModal } from '@/components/RemindersModal';
 
 export default function Home() {
-  const { loading, activeProject, activeCalendar, initializing, accounts } = useProject();
+  const { loading, activeProject, activeCalendar, initializing, teammates, activeTeammate } = useProject();
   const [isRemindersOpen, setRemindersOpen] = React.useState(false);
 
   const MainContent = () => {
@@ -35,7 +35,7 @@ export default function Home() {
       );
     }
     
-    if (accounts.length === 0) {
+    if (teammates.length === 0 || !activeTeammate) {
       return (
          <div className="flex h-full flex-col items-center justify-center text-center p-4">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-16 h-16 text-primary/50 mb-4">
@@ -43,10 +43,10 @@ export default function Home() {
             </svg>
           <h1 className="text-4xl font-bold text-foreground tracking-tight">Welcome to CollabCal</h1>
           <p className="mt-2 text-lg text-muted-foreground max-w-xl">
-            To get started, create an account. Accounts help you organize your projects. For example, you could have an account for "Personal" and another for "Work".
+            To get started, select or create a teammate profile.
           </p>
            <div className="mt-6">
-              <AccountSelector />
+              <TeammateSelector />
            </div>
         </div>
       )
@@ -61,7 +61,7 @@ export default function Home() {
                 <Bell className="mr-2 h-4 w-4" />
                 Reminders
               </Button>
-              <AccountSelector />
+              <TeammateSelector />
             </div>
           </header>
           <div className="flex-grow flex flex-col items-center justify-center text-center p-4 -mt-24">
@@ -106,7 +106,7 @@ export default function Home() {
                 <Bell className="mr-2 h-4 w-4" />
                 Reminders
               </Button>
-            <AccountSelector />
+            <TeammateSelector />
           </div>
         </header>
         <Card className="p-4 mb-6 shadow-sm">

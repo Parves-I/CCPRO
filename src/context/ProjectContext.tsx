@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import type { Project, ProjectData, Post, PostStatus, PostType, Calendar, Account } from '@/lib/types';
+import type { Project, ProjectData, Post, PostStatus, PostType, Calendar, Teammate } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import {
   collection,
@@ -20,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import {nanoid} from 'nanoid';
 import { isPast, format, startOfToday } from 'date-fns';
 
-const LAST_ACCOUNT_ID_KEY = 'collabcal-last-account-id';
+const LAST_TEAMMATE_ID_KEY = 'collabcal-last-teammate-id';
 
 interface Filters {
     status: PostStatus[];
@@ -31,8 +31,8 @@ interface Filters {
 interface ProjectContextType {
   initializing: boolean;
   loading: boolean;
-  accounts: Account[];
-  activeAccount: Account | null;
+  teammates: Teammate[];
+  activeTeammate: Teammate | null;
   projects: Project[];
   activeProject: Project | null;
   activeProjectData: ProjectData | null;
@@ -40,10 +40,10 @@ interface ProjectContextType {
   filters: Filters;
   allProjectData: Map<string, ProjectData>;
   setFilters: React.Dispatch<React.SetStateAction<Filters>>;
-  createAccount: (name: string) => Promise<void>;
-  renameAccount: (id: string, name: string) => Promise<void>;
-  deleteAccount: (id: string) => Promise<void>;
-  setActiveAccount: (account: Account | null) => void;
+  createTeammate: (name: string) => Promise<void>;
+  renameTeammate: (id: string, name: string) => Promise<void>;
+  deleteTeammate: (id: string) => Promise<void>;
+  setActiveTeammate: (teammate: Teammate | null) => void;
   setActiveProject: (project: Project | null) => void;
   createProject: (name: string, accountId: string) => Promise<void>;
   updateProject: (id: string, name: string, accountId: string) => Promise<void>;
@@ -68,8 +68,8 @@ const ProjectContext = React.createContext<ProjectContextType | undefined>(undef
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [initializing, setInitializing] = React.useState(true);
   const [loading, setLoading] = React.useState(false);
-  const [accounts, setAccounts] = React.useState<Account[]>([]);
-  const [activeAccount, setActiveAccount] = React.useState<Account | null>(null);
+  const [teammates, setTeammates] = React.useState<Teammate[]>([]);
+  const [activeTeammate, setActiveTeammate] = React.useState<Teammate | null>(null);
   const [projects, setProjects] = React.useState<Project[]>([]);
   const [allProjectData, setAllProjectData] = React.useState<Map<string, ProjectData>>(new Map());
   const [activeProject, setActiveProject] = React.useState<Project | null>(null);
@@ -89,23 +89,23 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   // Initial data fetch and listeners setup
   React.useEffect(() => {
     setInitializing(true);
-    const lastUsedAccountId = localStorage.getItem(LAST_ACCOUNT_ID_KEY);
+    const lastUsedTeammateId = localStorage.getItem(LAST_TEAMMATE_ID_KEY);
 
     const unsubscribeAccounts = onSnapshot(accountsCollectionRef, 
       (snapshot) => {
-        const fetchedAccounts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Account));
-        setAccounts(fetchedAccounts);
+        const fetchedTeammates = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Teammate));
+        setTeammates(fetchedTeammates);
         
-        if (fetchedAccounts.length > 0) {
-            const accountToSet = lastUsedAccountId 
-                ? (fetchedAccounts.find(a => a.id === lastUsedAccountId) || fetchedAccounts[0])
-                : fetchedAccounts[0];
+        if (fetchedTeammates.length > 0) {
+            const teammateToSet = lastUsedTeammateId 
+                ? (fetchedTeammates.find(a => a.id === lastUsedTeammateId) || null)
+                : null;
             
-            if (activeAccount?.id !== accountToSet.id) {
-                setActiveAccount(accountToSet);
+            if (activeTeammate?.id !== teammateToSet?.id) {
+                setActiveTeammate(teammateToSet);
             }
-        } else if (activeAccount) {
-            setActiveAccount(null);
+        } else if (activeTeammate) {
+            setActiveTeammate(null);
         }
         
         if (snapshot.docs.length === 0 && !localStorage.getItem('migration-checked')) {
@@ -119,7 +119,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                     return;
                 }
 
-                const newAccountRef = await addDoc(accountsCollectionRef, { name: 'Socials' });
+                const newAccountRef = await addDoc(accountsCollectionRef, { name: 'Default Teammate' });
                 const batch = writeBatch(db);
 
                 oldProjectsSnapshot.forEach(oldDoc => {
@@ -134,8 +134,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         }
       }, 
       (error) => {
-        console.error("Error fetching accounts:", error);
-        toast({ title: "Error", description: "Could not fetch accounts.", variant: "destructive" });
+        console.error("Error fetching teammates:", error);
+        toast({ title: "Error", description: "Could not fetch teammates.", variant: "destructive" });
         setInitializing(false);
       }
     );
@@ -175,24 +175,26 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
 
-  // Effect to handle active account change and save to localStorage
+  // Effect to handle active teammate change and save to localStorage
   React.useEffect(() => {
-    if (activeAccount) {
-      localStorage.setItem(LAST_ACCOUNT_ID_KEY, activeAccount.id);
+    if (activeTeammate) {
+      localStorage.setItem(LAST_TEAMMATE_ID_KEY, activeTeammate.id);
       
-      const firstProjectInAccount = projects.find(p => p.accountId === activeAccount.id);
-       if (!activeProject || activeProject.accountId !== activeAccount.id) {
+      const firstProjectInAccount = projects.find(p => p.accountId === activeTeammate.id);
+       if (!activeProject || activeProject.accountId !== activeTeammate.id) {
           setActiveProject(firstProjectInAccount || null);
        }
     } else {
+        // If there's no active teammate, clear the storage key so the modal shows on next visit
+        localStorage.removeItem(LAST_TEAMMATE_ID_KEY);
         setActiveProject(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeAccount, projects]);
+  }, [activeTeammate, projects]);
 
   // Effect to fetch project data when active project changes
   React.useEffect(() => {
-    if (activeProject && activeAccount) {
+    if (activeProject && activeTeammate) {
       setLoading(true);
       const data = allProjectData.get(activeProject.id);
 
@@ -222,39 +224,39 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       setActiveProjectData(null);
       setActiveCalendar(null);
     }
-  }, [activeProject, activeAccount, allProjectData]);
+  }, [activeProject, activeTeammate, allProjectData]);
 
-  const createAccount = async (name: string) => {
+  const createTeammate = async (name: string) => {
     if (!name.trim()) return;
     setLoading(true);
     try {
         const docRef = await addDoc(accountsCollectionRef, { name });
-        setActiveAccount({id: docRef.id, name});
-        toast({ title: 'Success', description: `Account "${name}" created.`});
+        setActiveTeammate({id: docRef.id, name});
+        toast({ title: 'Success', description: `Teammate "${name}" created.`});
     } catch (error) {
-        console.error('Error creating account:', error);
-        toast({ title: 'Error', description: 'Failed to create account.', variant: 'destructive' });
+        console.error('Error creating teammate:', error);
+        toast({ title: 'Error', description: 'Failed to create teammate.', variant: 'destructive' });
     } finally {
         setLoading(false);
     }
   }
 
-  const renameAccount = async (id: string, name: string) => {
+  const renameTeammate = async (id: string, name: string) => {
     if (!name.trim()) return;
     setLoading(true);
     const accountDoc = doc(db, 'accounts', id);
     try {
         await updateDoc(accountDoc, { name });
-        toast({ title: 'Success', description: 'Account renamed.' });
+        toast({ title: 'Success', description: 'Teammate renamed.' });
     } catch (error) {
-        console.error('Error renaming account:', error);
-        toast({ title: 'Error', description: 'Failed to rename account.', variant: 'destructive' });
+        console.error('Error renaming teammate:', error);
+        toast({ title: 'Error', description: 'Failed to rename teammate.', variant: 'destructive' });
     } finally {
         setLoading(false);
     }
   }
   
-  const deleteAccount = async (id: string) => {
+  const deleteTeammate = async (id: string) => {
     setLoading(true);
     try {
         const projectsQuery = query(collection(db, 'accounts', id, 'projects'));
@@ -271,11 +273,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         batch.delete(doc(db, 'accounts', id));
         await batch.commit();
 
-        toast({ title: 'Success', description: 'Account and all its projects deleted.' });
+        toast({ title: 'Success', description: 'Teammate and all their projects deleted.' });
 
     } catch (error) {
-        console.error('Error deleting account:', error);
-        toast({ title: 'Error', description: 'Failed to delete account.', variant: 'destructive' });
+        console.error('Error deleting teammate:', error);
+        toast({ title: 'Error', description: 'Failed to delete teammate.', variant: 'destructive' });
     } finally {
         setLoading(false);
     }
@@ -337,11 +339,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   };
 
  const deleteProject = async (id: string) => {
-    if (!activeAccount) return;
+    if (!activeTeammate) return;
     setLoading(true);
     try {
-      const projectDocRef = doc(db, 'accounts', activeAccount.id, 'projects', id);
-      const logsCollectionRef = collection(db, 'accounts', activeAccount.id, 'projects', id, 'logs');
+      const projectDocRef = doc(db, 'accounts', activeTeammate.id, 'projects', id);
+      const logsCollectionRef = collection(db, 'accounts', activeTeammate.id, 'projects', id, 'logs');
       const logsSnapshot = await getDocs(logsCollectionRef);
       
       const batch = writeBatch(db);
@@ -458,17 +460,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   };
 
   const saveProjectToDb = async () => {
-    if (!activeProject || !activeProjectData || !activeCalendar || !activeAccount) return;
+    if (!activeProject || !activeProjectData || !activeCalendar || !activeTeammate) return;
     setLoading(true);
     try {
-      const projectRef = doc(db, 'accounts', activeAccount.id, 'projects', activeProject.id);
+      const projectRef = doc(db, 'accounts', activeTeammate.id, 'projects', activeProject.id);
       
       const batch = writeBatch(db);
       
       const projectDataToSave = { ...activeProjectData, lastModified: serverTimestamp() };
       batch.set(projectRef, projectDataToSave, {merge: true});
       
-      const logsCollectionRef = collection(db, 'accounts', activeAccount.id, 'projects', activeProject.id, 'logs');
+      const logsCollectionRef = collection(db, 'accounts', activeTeammate.id, 'projects', activeProject.id, 'logs');
       const ip = 'Unknown'; // Can't get IP on client side easily
       const logEntry = {
         timestamp: new Date(),
@@ -521,9 +523,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }
 
   const updatePostInProject = (projectId: string, calendarId: string, date: string, postData: Partial<Post>) => {
-    if (!activeAccount) return;
+    if (!activeTeammate) return;
 
-    const projectRef = doc(db, 'accounts', activeAccount.id, 'projects', projectId);
+    const projectRef = doc(db, 'accounts', activeTeammate.id, 'projects', projectId);
     
     const projectData = allProjectData.get(projectId);
     if (!projectData) return;
@@ -542,9 +544,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   };
 
   const movePostInProject = (projectId: string, calendarId: string, sourceDate: string, destinationDate: string) => {
-     if (!activeAccount) return;
+     if (!activeTeammate) return;
       
-    const projectRef = doc(db, 'accounts', activeAccount.id, 'projects', projectId);
+    const projectRef = doc(db, 'accounts', activeTeammate.id, 'projects', projectId);
 
     const projectData = allProjectData.get(projectId);
     if (!projectData) return;
@@ -577,8 +579,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const value = {
     initializing,
     loading,
-    accounts,
-    activeAccount,
+    teammates,
+    activeTeammate,
     projects,
     allProjectData,
     activeProject,
@@ -586,10 +588,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     activeCalendar,
     filters,
     setFilters,
-    createAccount,
-    renameAccount,
-    deleteAccount,
-    setActiveAccount,
+    createTeammate,
+    renameTeammate,
+    deleteTeammate,
+    setActiveTeammate,
     setActiveProject,
     createProject,
     updateProject,

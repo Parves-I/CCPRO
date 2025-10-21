@@ -53,7 +53,7 @@ export interface Post {
 
 export type CalendarData = Record<string, Post>; // Key is "YYYY-MM-DD"
 
-export interface Account {
+export interface Teammate {
   id: string;
   name: string;
 }

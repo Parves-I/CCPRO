@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { useTheme } from 'next-themes';
 import {
   Dialog,
   DialogContent,
@@ -9,9 +8,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Settings, Moon, Sun } from 'lucide-react';
+import { Settings } from 'lucide-react';
+import { useProject } from '@/context/ProjectContext';
+import { Button } from './ui/button';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -19,19 +18,12 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
+  const { setActiveTeammate } = useProject();
 
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return null;
-  }
-
-  const handleThemeChange = (checked: boolean) => {
-    setTheme(checked ? 'dark' : 'light');
+  const handleChangeUser = () => {
+    // By setting the active teammate to null, we trigger the selection modal on the main page.
+    setActiveTeammate(null);
+    onClose();
   };
 
   return (
@@ -48,25 +40,19 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         </DialogHeader>
         <div className="py-4">
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-foreground">Appearance</h3>
+            <h3 className="text-lg font-semibold text-foreground">User</h3>
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
-                <Label htmlFor="dark-mode" className="text-base">
-                  Dark Mode
-                </Label>
+                <p className="text-base font-medium">
+                  Switch Teammate
+                </p>
                 <p className="text-sm text-muted-foreground">
-                  Embrace the darkness.
+                  Log in as a different teammate.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <Sun className="h-5 w-5" />
-                <Switch
-                  id="dark-mode"
-                  checked={theme === 'dark'}
-                  onCheckedChange={handleThemeChange}
-                />
-                <Moon className="h-5 w-5" />
-              </div>
+              <Button variant="outline" onClick={handleChangeUser}>
+                Change User
+              </Button>
             </div>
           </div>
         </div>

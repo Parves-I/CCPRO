@@ -32,18 +32,18 @@ interface ChangeHistoryModalProps {
 }
 
 export function ChangeHistoryModal({ isOpen, onClose }: ChangeHistoryModalProps) {
-    const { activeAccount, activeProject } = useProject();
+    const { activeTeammate, activeProject } = useProject();
     const [logs, setLogs] = React.useState<Log[]>([]);
     const [loading, setLoading] = React.useState(true);
 
     React.useEffect(() => {
-        if (!isOpen || !activeProject || !activeAccount) {
+        if (!isOpen || !activeProject || !activeTeammate) {
             if(!isOpen) setLogs([]);
             return;
         };
 
         setLoading(true);
-        const logsRef = collection(db, 'accounts', activeAccount.id, 'projects', activeProject.id, 'logs');
+        const logsRef = collection(db, 'accounts', activeTeammate.id, 'projects', activeProject.id, 'logs');
         const q = query(logsRef, orderBy('timestamp', 'desc'), limit(20));
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -56,7 +56,7 @@ export function ChangeHistoryModal({ isOpen, onClose }: ChangeHistoryModalProps)
         });
 
         return () => unsubscribe();
-    }, [activeAccount, activeProject, isOpen]);
+    }, [activeTeammate, activeProject, isOpen]);
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>

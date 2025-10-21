@@ -7,7 +7,7 @@ import type { ProjectData } from '@/lib/types';
 
 // This function is kept for potential future use but is currently not used
 // as saving logic has been moved to the client-side context for simplicity
-// in the new account-based structure.
+// in the new teammate-based structure.
 export async function saveProjectAndLog(
   accountId: string, 
   projectId: string, 

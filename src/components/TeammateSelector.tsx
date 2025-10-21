@@ -23,43 +23,43 @@ import { ChevronsUpDown, Check, MoreHorizontal, Edit, Trash2, Plus, Users, Loade
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
-export function AccountSelector() {
-    const { accounts, activeAccount, setActiveAccount, createAccount, renameAccount, deleteAccount, loading, initializing } = useProject();
+export function TeammateSelector() {
+    const { teammates, activeTeammate, setActiveTeammate, createTeammate, renameTeammate, deleteTeammate, loading, initializing } = useProject();
     const [isCreateOpen, setCreateOpen] = React.useState(false);
     const [isEditOpen, setEditOpen] = React.useState(false);
     const [isDeleteOpen, setDeleteOpen] = React.useState(false);
     const [newName, setNewName] = React.useState('');
     const [deletePassword, setDeletePassword] = React.useState('');
-    const [accountToEdit, setAccountToEdit] = React.useState<typeof activeAccount>(null);
+    const [teammateToEdit, setTeammateToEdit] = React.useState<typeof activeTeammate>(null);
 
     const { toast } = useToast();
     
     React.useEffect(() => {
-        if(accountToEdit && isEditOpen) {
-            setNewName(accountToEdit.name);
+        if(teammateToEdit && isEditOpen) {
+            setNewName(teammateToEdit.name);
         } else {
             setNewName('');
         }
-    }, [accountToEdit, isEditOpen]);
+    }, [teammateToEdit, isEditOpen]);
 
     const handleCreate = () => {
         if(!newName.trim()) {
-            toast({ title: 'Error', description: 'Account name cannot be empty.', variant: 'destructive'});
+            toast({ title: 'Error', description: 'Teammate name cannot be empty.', variant: 'destructive'});
             return;
         }
-        createAccount(newName.trim());
+        createTeammate(newName.trim());
         setNewName('');
         setCreateOpen(false);
     }
     
     const handleRename = () => {
-        if (!accountToEdit || !newName.trim()) {
-            toast({ title: 'Error', description: 'Account name cannot be empty.', variant: 'destructive'});
+        if (!teammateToEdit || !newName.trim()) {
+            toast({ title: 'Error', description: 'Teammate name cannot be empty.', variant: 'destructive'});
             return;
         }
-        renameAccount(accountToEdit.id, newName.trim());
+        renameTeammate(teammateToEdit.id, newName.trim());
         setEditOpen(false);
-        setAccountToEdit(null);
+        setTeammateToEdit(null);
     }
 
     const handleDelete = () => {
@@ -67,30 +67,30 @@ export function AccountSelector() {
             toast({ title: 'Error', description: 'Incorrect password.', variant: 'destructive'});
             return;
         }
-        if (activeAccount) {
-            deleteAccount(activeAccount.id);
+        if (activeTeammate) {
+            deleteTeammate(activeTeammate.id);
         }
         setDeletePassword('');
         setDeleteOpen(false);
     }
     
-    if (accounts.length === 0 && !initializing) {
+    if (teammates.length === 0 && !initializing && !activeTeammate) {
         return (
             <>
                  <Button onClick={() => setCreateOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" /> Create Account
+                    <Plus className="mr-2 h-4 w-4" /> Create Teammate Profile
                 </Button>
                 <Dialog open={isCreateOpen} onOpenChange={setCreateOpen}>
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle>Create Your First Account</DialogTitle>
+                            <DialogTitle>Create Your First Teammate Profile</DialogTitle>
                             <DialogDescription>
-                                Accounts help you organize your projects (e.g., "Work", "Personal").
+                                Teammate profiles help you organize your projects (e.g., "Work", "Personal").
                             </DialogDescription>
                         </DialogHeader>
                         <div>
-                            <Label htmlFor='new-account-name'>Account Name</Label>
-                            <Input id='new-account-name' value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g., Socials"/>
+                            <Label htmlFor='new-teammate-name'>Teammate Name</Label>
+                            <Input id='new-teammate-name' value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g., Jane Doe"/>
                         </div>
                         <DialogFooter>
                             <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancel</Button>
@@ -112,52 +112,52 @@ export function AccountSelector() {
                     className="w-[200px] justify-between"
                 >
                     <Users className="mr-2 h-4 w-4 shrink-0" />
-                    {activeAccount ? activeAccount.name : "Select account"}
+                    {activeTeammate ? activeTeammate.name : "Select Teammate"}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-[250px]">
-                    {accounts.map((account) => (
+                    {teammates.map((teammate) => (
                         <DropdownMenuItem
-                            key={account.id}
+                            key={teammate.id}
                             onSelect={() => {
-                                const newAccount = accounts.find(a => a.id === account.id) || null;
-                                setActiveAccount(newAccount);
+                                const newTeammate = teammates.find(a => a.id === teammate.id) || null;
+                                setActiveTeammate(newTeammate);
                             }}
                         >
                             <Check
                                 className={cn(
                                     'mr-2 h-4 w-4',
-                                    activeAccount?.id === account.id ? 'opacity-100' : 'opacity-0'
+                                    activeTeammate?.id === teammate.id ? 'opacity-100' : 'opacity-0'
                                 )}
                             />
-                            {account.name}
+                            {teammate.name}
                         </DropdownMenuItem>
                     ))}
                     <DropdownMenuSeparator />
                      <DropdownMenuItem onSelect={() => setCreateOpen(true)}>
-                        <Plus className="mr-2 h-4 w-4" /> Create New Account
+                        <Plus className="mr-2 h-4 w-4" /> Create New Teammate
                     </DropdownMenuItem>
                     
                     <DropdownMenuSub>
                         <DropdownMenuSubTrigger>
                             <Edit className="mr-2 h-4 w-4" />
-                            Rename Account
+                            Rename Teammate
                         </DropdownMenuSubTrigger>
                         <DropdownMenuPortal>
                              <DropdownMenuSubContent>
-                                {accounts.map(account => (
-                                    <DropdownMenuItem key={account.id} onSelect={() => { setAccountToEdit(account); setEditOpen(true);}}>
-                                        {account.name}
+                                {teammates.map(teammate => (
+                                    <DropdownMenuItem key={teammate.id} onSelect={() => { setTeammateToEdit(teammate); setEditOpen(true);}}>
+                                        {teammate.name}
                                     </DropdownMenuItem>
                                 ))}
                             </DropdownMenuSubContent>
                         </DropdownMenuPortal>
                     </DropdownMenuSub>
 
-                    <DropdownMenuItem onSelect={() => setDeleteOpen(true)} className="text-destructive focus:text-destructive" disabled={!activeAccount}>
+                    <DropdownMenuItem onSelect={() => setDeleteOpen(true)} className="text-destructive focus:text-destructive" disabled={!activeTeammate}>
                         <Trash2 className="mr-2 h-4 w-4" />
-                        Delete Current Account
+                        Delete Current Teammate
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
@@ -166,31 +166,31 @@ export function AccountSelector() {
             <Dialog open={isCreateOpen} onOpenChange={setCreateOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Create New Account</DialogTitle>
+                        <DialogTitle>Create New Teammate</DialogTitle>
                     </DialogHeader>
                     <div>
-                        <Label htmlFor='new-account-name-dialog'>Account Name</Label>
-                        <Input id='new-account-name-dialog' value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g., Marketing Team"/>
+                        <Label htmlFor='new-teammate-name-dialog'>Teammate Name</Label>
+                        <Input id='new-teammate-name-dialog' value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g., John Doe"/>
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancel</Button>
-                        <Button onClick={handleCreate} disabled={loading}>{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Create Account</Button>
+                        <Button onClick={handleCreate} disabled={loading}>{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Create Teammate</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             {/* Rename Dialog */}
-            <Dialog open={isEditOpen} onOpenChange={(open) => { setEditOpen(open); if(!open) setAccountToEdit(null); }}>
+            <Dialog open={isEditOpen} onOpenChange={(open) => { setEditOpen(open); if(!open) setTeammateToEdit(null); }}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Rename Account &quot;{accountToEdit?.name}&quot;</DialogTitle>
+                        <DialogTitle>Rename Teammate &quot;{teammateToEdit?.name}&quot;</DialogTitle>
                     </DialogHeader>
                     <div>
-                        <Label htmlFor='rename-account-name'>New Account Name</Label>
-                        <Input id='rename-account-name' value={newName} onChange={(e) => setNewName(e.target.value)} />
+                        <Label htmlFor='rename-teammate-name'>New Teammate Name</Label>
+                        <Input id='rename-teammate-name' value={newName} onChange={(e) => setNewName(e.target.value)} />
                     </div>
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => { setEditOpen(false); setAccountToEdit(null);}}>Cancel</Button>
+                        <Button variant="ghost" onClick={() => { setEditOpen(false); setTeammateToEdit(null);}}>Cancel</Button>
                         <Button onClick={handleRename} disabled={loading}>{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save Changes</Button>
                     </DialogFooter>
                 </DialogContent>
@@ -200,9 +200,9 @@ export function AccountSelector() {
             <AlertDialog open={isDeleteOpen} onOpenChange={setDeleteOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure you want to delete this account?</AlertDialogTitle>
+                        <AlertDialogTitle>Are you sure you want to delete this teammate profile?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will permanently delete the "{activeAccount?.name}" account and all its projects. This action cannot be undone. Please enter the password to confirm.
+                            This will permanently delete the "{activeTeammate?.name}" profile and all its projects. This action cannot be undone. Please enter the password to confirm.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <div>

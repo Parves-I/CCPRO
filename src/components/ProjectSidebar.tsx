@@ -38,7 +38,7 @@ import type { Project } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
 export function ProjectSidebar() {
-  const { projects, activeProject, setActiveProject, createProject, updateProject, deleteProject, loading, activeAccount } = useProject();
+  const { projects, activeProject, setActiveProject, createProject, updateProject, deleteProject, loading, activeTeammate } = useProject();
   const [isCreateOpen, setCreateOpen] = React.useState(false);
   const [isHistoryOpen, setHistoryOpen] = React.useState(false);
   const [isSettingsOpen, setSettingsOpen] = React.useState(false);
@@ -47,17 +47,17 @@ export function ProjectSidebar() {
   const { toast } = useToast();
 
   const handleCreateProject = async () => {
-    if (!activeAccount) {
-        toast({title: 'No Account Selected', description: 'Please select or create an account first.', variant: 'destructive'});
+    if (!activeTeammate) {
+        toast({title: 'No Teammate Selected', description: 'Please select or create a teammate profile first.', variant: 'destructive'});
         return;
     };
-    await createProject(newProjectName, activeAccount.id);
+    await createProject(newProjectName, activeTeammate.id);
     setNewProjectName('');
     setCreateOpen(false);
   };
 
   const filteredProjects = projects.filter(p => 
-    p.accountId === activeAccount?.id &&
+    p.accountId === activeTeammate?.id &&
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
@@ -67,7 +67,7 @@ export function ProjectSidebar() {
        <Dialog open={isCreateOpen} onOpenChange={setCreateOpen}>
         <DialogTrigger asChild>
           <div className="p-2">
-            <Button className="w-full" disabled={loading || !activeAccount}>
+            <Button className="w-full" disabled={loading || !activeTeammate}>
               <Plus className="mr-2 h-4 w-4" />
               New Project
             </Button>
@@ -99,7 +99,7 @@ export function ProjectSidebar() {
             className="pl-8"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            disabled={!activeAccount}
+            disabled={!activeTeammate}
           />
         </div>
       </div>

@@ -47,13 +47,13 @@ interface RemindersModalProps {
 }
 
 export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
-    const { projects, allProjectData, activeAccount, getProjectById, updatePostInProject, movePostInProject } = useProject();
+    const { projects, allProjectData, activeTeammate, getProjectById, updatePostInProject, movePostInProject } = useProject();
     const [upcomingPosts, setUpcomingPosts] = React.useState<ReminderPost[]>([]);
     const [missedPosts, setMissedPosts] = React.useState<ReminderPost[]>([]);
     const [viewingMonth, setViewingMonth] = React.useState(startOfToday());
 
     React.useEffect(() => {
-        if (!isOpen || !activeAccount) {
+        if (!isOpen || !activeTeammate) {
             setUpcomingPosts([]);
             setMissedPosts([]);
             return;
@@ -67,7 +67,7 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
         const upcoming: ReminderPost[] = [];
         const missed: ReminderPost[] = [];
         
-        const accountProjects = projects.filter(p => p.accountId === activeAccount.id);
+        const accountProjects = projects.filter(p => p.accountId === activeTeammate.id);
 
         for (const project of accountProjects) {
             const projectData = (allProjectData as Map<string, any>).get(project.id);
@@ -94,7 +94,7 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
         
         setUpcomingPosts(upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
         setMissedPosts(missed.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-    }, [isOpen, projects, allProjectData, activeAccount, viewingMonth]);
+    }, [isOpen, projects, allProjectData, activeTeammate, viewingMonth]);
 
      const handleCloseMissedPost = (projectId: string, calendarId: string, date: string) => {
         setMissedPosts(prev => prev.filter(p => 
