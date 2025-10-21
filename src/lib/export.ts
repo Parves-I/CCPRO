@@ -3,7 +3,7 @@
 import jsPDF from 'jspdf';
 import { utils, writeFile } from 'xlsx';
 import type { Calendar, Post, PostStatus } from './types';
-import { format, eachDayOfInterval, startOfWeek, endOfWeek, getMonth, getYear } from 'date-fns';
+import { format, eachDayOfInterval, startOfWeek, endOfWeek } from 'date-fns';
 
 const statusColorMap: Record<PostStatus, string> = {
     Planned: '#cbd5e1',    // slate-300
@@ -20,159 +20,136 @@ export const exportToPDF = async (calendar: Calendar, projectName: string) => {
         return;
     }
 
-    const doc = new jsPDF({
-        orientation: 'landscape',
-        unit: 'pt',
-        format: 'a4',
-    });
-
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 30;
-
     const startDate = new Date(calendar.startDate + 'T00:00:00');
     const endDate = new Date(calendar.endDate + 'T00:00:00');
+
+    const calendarStart = startOfWeek(startDate);
+    const calendarEnd = endOfWeek(endDate);
     
-    const months: {month: number, year: number}[] = [];
-    let loopDate = new Date(startDate);
-    while (loopDate <= endDate) {
-        const month = getMonth(loopDate);
-        const year = getYear(loopDate);
-        if (!months.some(m => m.month === month && m.year === year)) {
-            months.push({ month, year });
-        }
-        loopDate.setDate(loopDate.getDate() + 1);
-    }
+    const days = eachDayOfInterval({
+        start: calendarStart,
+        end: calendarEnd,
+    });
+    
+    const numWeeks = Math.ceil(days.length / 7);
 
-    const totalPages = months.length;
-    let pageNum = 0;
+    // Define dimensions
+    const margin = 40;
+    const headerHeight = 80;
+    const weekdayHeaderHeight = 25;
+    const cellWidth = 120;
+    const cellHeight = 100;
+    const gridWidth = cellWidth * 7;
+    const gridHeight = cellHeight * numWeeks;
 
-    for (const { month, year } of months) {
-        pageNum++;
-        const currentMonthDate = new Date(year, month, 1);
+    const totalWidth = gridWidth + margin * 2;
+    const totalHeight = headerHeight + weekdayHeaderHeight + gridHeight + margin * 2;
+    
+    const orientation = totalWidth > totalHeight ? 'l' : 'p';
+    
+    const doc = new jsPDF({
+        orientation: orientation,
+        unit: 'pt',
+        format: [totalWidth, totalHeight],
+    });
+
+    // Main Header
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${projectName} - ${calendar.name}`, margin, margin + 10);
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'normal');
+    const dateRange = `${format(startDate, 'PPP')} to ${format(endDate, 'PPP')}`;
+    doc.text(dateRange, margin, margin + 35);
+    
+    doc.setFontSize(10);
+    doc.text(`Exported on: ${format(new Date(), 'PPP')}`, totalWidth - margin, margin + 10, { align: 'right' });
+
+    // Weekday Headers
+    const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const gridX = margin;
+    const gridY = headerHeight;
+    
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setFillColor(241, 245, 249); // slate-100
+    doc.rect(gridX, gridY, gridWidth, weekdayHeaderHeight, 'F');
+    
+    weekdays.forEach((day, i) => {
+        doc.text(day, gridX + i * cellWidth + cellWidth / 2, gridY + weekdayHeaderHeight / 2, { align: 'center', baseline: 'middle' });
+    });
+
+    // Calendar Grid
+    const gridContentY = gridY + weekdayHeaderHeight;
+
+    days.forEach((day, i) => {
+        const row = Math.floor(i / 7);
+        const col = i % 7;
+        const cellX = gridX + col * cellWidth;
+        const cellY = gridContentY + row * cellHeight;
         
-        if (pageNum > 1) {
-            doc.addPage();
-        }
-
-        // Header
-        doc.setFontSize(20);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`${projectName} - ${calendar.name}`, margin, margin + 10);
+        // Cell border
+        doc.setDrawColor(226, 232, 240); // slate-200
+        doc.rect(cellX, cellY, cellWidth, cellHeight, 'S');
         
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text(format(currentMonthDate, 'MMMM yyyy'), margin, margin + 35);
-        
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Exported on: ${format(new Date(), 'PPP')}`, pageWidth - margin, margin + 10, { align: 'right' });
-
-
-        // Weekday Headers
-        const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const gridX = margin;
-        const gridY = margin + 60;
-        const gridWidth = pageWidth - (margin * 2);
-        const cellWidth = gridWidth / 7;
-        const headerHeight = 20;
-
+        // Date number
+        const isCurrentRange = day >= startDate && day <= endDate;
         doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setFillColor(241, 245, 249); // slate-100
-        doc.rect(gridX, gridY, gridWidth, headerHeight, 'F');
+        doc.setFont('helvetica', isCurrentRange ? 'bold' : 'normal');
+        doc.setTextColor(isCurrentRange ? '#000' : '#94a3b8'); // black or slate-400
+        doc.text(format(day, 'd'), cellX + 5, cellY + 12);
         
-        weekdays.forEach((day, i) => {
-            doc.text(day, gridX + i * cellWidth + cellWidth / 2, gridY + headerHeight / 2, { align: 'center', baseline: 'middle' });
-        });
+        // Post content
+        const dateKey = format(day, 'yyyy-MM-dd');
+        const post = calendar.calendarData[dateKey];
+        if (post && isCurrentRange) {
+            const padding = 5;
+            let textY = cellY + 28;
+            const lineSpacing = 11;
 
-        // Calendar Grid
-        const monthStart = new Date(Math.max(startDate.getTime(), currentMonthDate.getTime()));
-        const monthEnd = new Date(Math.min(endDate.getTime(), endOfWeek(currentMonthDate).getTime()));
-
-        const calendarStart = startOfWeek(monthStart);
-        const calendarEnd = endOfWeek(monthEnd);
-
-        const daysInGrid = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-        
-        const gridContentY = gridY + headerHeight;
-        const gridContentHeight = pageHeight - gridContentY - (margin + 20);
-        const numWeeks = Math.ceil(daysInGrid.length / 7);
-        const cellHeight = gridContentHeight / numWeeks;
-
-        daysInGrid.forEach((day, i) => {
-            const row = Math.floor(i / 7);
-            const col = i % 7;
-            const cellX = gridX + col * cellWidth;
-            const cellY = gridContentY + row * cellHeight;
-
-            // Cell border
-            doc.setDrawColor(226, 232, 240); // slate-200
-            doc.rect(cellX, cellY, cellWidth, cellHeight, 'S');
-
-            // Date number
-            const isCurrent = getMonth(day) === getMonth(currentMonthDate);
-            doc.setFontSize(9);
-            doc.setFont('helvetica', isCurrent ? 'bold' : 'normal');
-            doc.setTextColor(isCurrent ? '#000' : '#94a3b8'); // black or slate-400
-            doc.text(format(day, 'd'), cellX + 5, cellY + 10);
-            
-            // Post content
-            const dateKey = format(day, 'yyyy-MM-dd');
-            const post = calendar.calendarData[dateKey];
-            if (post) {
-                const textY = cellY + 25;
-                const lineSpacing = 10;
-                const padding = 5;
-
-                // Theme color indicator
-                if (post.color !== 'transparent') {
-                    doc.setFillColor(post.color);
-                    doc.rect(cellX + 2, cellY + 2, 3, cellHeight - 4, 'F');
-                }
-
-                // Status
-                doc.setFontSize(7);
-                doc.setFont('helvetica', 'normal');
-                doc.setTextColor('#475569'); // slate-600
-                const statusColor = statusColorMap[post.status] || '#cbd5e1';
-                doc.setFillColor(statusColor);
-                doc.circle(cellX + padding + 5, textY - 3, 3, 'F');
-                doc.text(post.status, cellX + padding + 10, textY);
-
-                // Title
-                doc.setFontSize(8);
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor('#1e293b'); // slate-800
-                const titleLines = doc.splitTextToSize(post.title, cellWidth - padding * 2 - 8);
-                doc.text(titleLines, cellX + padding, textY + lineSpacing);
-
-                let currentTextY = textY + lineSpacing * (1 + titleLines.length);
-
-                // Post Types
-                doc.setFontSize(7);
-                doc.setFont('helvetica', 'normal');
-                const typesText = post.types.join(', ');
-                const typeLines = doc.splitTextToSize(typesText, cellWidth - padding * 2);
-                doc.text(typeLines, cellX + padding, currentTextY);
-                currentTextY += lineSpacing * typeLines.length;
-
-                // Platforms
-                doc.setFontSize(6);
-                doc.setFont('helvetica', 'italic');
-                doc.setTextColor('#64748b'); // slate-500
-                const platformText = 'on: ' + post.platforms.join(', ');
-                const platformLines = doc.splitTextToSize(platformText, cellWidth - padding * 2);
-                doc.text(platformLines, cellX + padding, currentTextY + 5);
+            // Theme color indicator
+            if (post.color && post.color !== 'transparent') {
+                doc.setFillColor(post.color);
+                doc.rect(cellX + 2, cellY + 2, 4, cellHeight - 4, 'F');
             }
-        });
 
-        // Footer
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor('#64748b'); // slate-500
-        doc.text(`Page ${pageNum} of ${totalPages}`, pageWidth - margin, pageHeight - margin + 10, { align: 'right' });
-    }
+            // Status
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor('#475569'); // slate-600
+            const statusColor = statusColorMap[post.status] || '#cbd5e1';
+            doc.setFillColor(statusColor);
+            doc.circle(cellX + padding + 5, textY - 4, 4, 'F');
+            doc.text(post.status, cellX + padding + 12, textY);
+            textY += lineSpacing + 2;
+
+            // Title
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor('#1e293b'); // slate-800
+            const titleLines = doc.splitTextToSize(post.title, cellWidth - padding * 2 - 8);
+            doc.text(titleLines, cellX + padding, textY);
+            textY += lineSpacing * titleLines.length;
+
+            // Post Types
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor('#334155'); // slate-700
+            const typesText = post.types.join(', ');
+            const typeLines = doc.splitTextToSize(typesText, cellWidth - padding * 2);
+            doc.text(typeLines, cellX + padding, textY);
+            textY += lineSpacing * typeLines.length;
+
+            // Platforms
+            doc.setFontSize(7);
+            doc.setFont('helvetica', 'italic');
+            doc.setTextColor('#64748b'); // slate-500
+            const platformText = 'on: ' + post.platforms.join(', ');
+            const platformLines = doc.splitTextToSize(platformText, cellWidth - padding * 2);
+            doc.text(platformLines, cellX + padding, textY + 5);
+        }
+    });
 
     doc.save(`${projectName.replace(/\s+/g, '-')}-${calendar.name.replace(/\s+/g, '-')}.pdf`);
 };
