@@ -4,18 +4,6 @@ import jsPDF from 'jspdf';
 import { utils, writeFile } from 'xlsx';
 import type { Calendar, Post, PostStatus } from './types';
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, startOfWeek, endOfWeek, getMonth } from 'date-fns';
-import { InstagramIconSimple, YouTubeIcon, LinkedInIcon, FacebookIcon, WebsiteIcon, OtherPlatformIcon } from '@/components/icons';
-import { svgToPng } from './svgUtils';
-
-// A map from platform names to their SVG icon components
-const platformIconMap: Record<string, (props: React.SVGProps<SVGSVGElement>) => JSX.Element> = {
-    Instagram: InstagramIconSimple,
-    YouTube: YouTubeIcon,
-    LinkedIn: LinkedInIcon,
-    Facebook: FacebookIcon,
-    Website: WebsiteIcon,
-    Other: OtherPlatformIcon,
-};
 
 const statusColorMap: Record<PostStatus, string> = {
     Planned: '#cbd5e1',    // slate-300
@@ -57,12 +45,6 @@ export const exportToPDF = async (calendar: Calendar, projectName: string) => {
     const totalPages = months.length;
     let pageNum = 0;
 
-    // Create PNGs for all icons once
-    const iconPngCache: Record<string, string> = {};
-    for (const platform in platformIconMap) {
-        iconPngCache[platform] = await svgToPng(platformIconMap[platform]({}), 24, 24);
-    }
-    
     for (const month of months) {
         pageNum++;
         const currentMonthDate = new Date(startDate.getFullYear(), month, 1);
@@ -162,26 +144,23 @@ export const exportToPDF = async (calendar: Calendar, projectName: string) => {
                 const titleLines = doc.splitTextToSize(post.title, cellWidth - padding * 2 - 8);
                 doc.text(titleLines, cellX + padding, textY + lineSpacing);
 
+                let currentTextY = textY + lineSpacing * (1 + titleLines.length);
+
                 // Post Types
                 doc.setFontSize(7);
                 doc.setFont('helvetica', 'normal');
                 const typesText = post.types.join(', ');
                 const typeLines = doc.splitTextToSize(typesText, cellWidth - padding * 2);
-                doc.text(typeLines, cellX + padding, textY + lineSpacing * (1 + titleLines.length));
+                doc.text(typeLines, cellX + padding, currentTextY);
+                currentTextY += lineSpacing * typeLines.length;
 
-                // Platform icons at the bottom
-                const iconSize = 10;
-                const iconPadding = 3;
-                let iconX = cellX + cellWidth - padding - (post.platforms.length * (iconSize + iconPadding));
-                const iconY = cellY + cellHeight - padding - iconSize;
-                
-                post.platforms.slice(0, 4).forEach(platform => {
-                    const iconPng = iconPngCache[platform.trim()];
-                    if(iconPng){
-                       doc.addImage(iconPng, 'PNG', iconX, iconY, iconSize, iconSize);
-                       iconX += iconSize + iconPadding;
-                    }
-                });
+                // Platforms
+                doc.setFontSize(6);
+                doc.setFont('helvetica', 'italic');
+                doc.setTextColor('#64748b'); // slate-500
+                const platformText = 'on: ' + post.platforms.join(', ');
+                const platformLines = doc.splitTextToSize(platformText, cellWidth - padding * 2);
+                doc.text(platformLines, cellX + padding, currentTextY + 5);
             }
         });
 
