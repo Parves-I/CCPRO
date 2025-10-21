@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { CalendarIcon, Loader2, User, Bell } from 'lucide-react';
+import { CalendarIcon, Loader2, User, Bell, Users } from 'lucide-react';
 import {
   Sidebar,
   SidebarHeader,
@@ -20,9 +20,10 @@ import { Card } from '@/components/ui/card';
 import { CalendarSelector } from '@/components/CalendarSelector';
 import { TeammateSelector } from '@/components/TeammateSelector';
 import { RemindersModal } from '@/components/RemindersModal';
+import { AccountSelector } from '@/components/AccountSelector';
 
 export default function Home() {
-  const { loading, activeProject, activeCalendar, initializing, teammates, activeTeammate } = useProject();
+  const { loading, activeProject, activeCalendar, initializing, teammates, activeTeammate, activeAccount } = useProject();
   const [isRemindersOpen, setRemindersOpen] = React.useState(false);
 
   const MainContent = () => {
@@ -43,13 +44,41 @@ export default function Home() {
             </svg>
           <h1 className="text-4xl font-bold text-foreground tracking-tight">Welcome to CollabCal</h1>
           <p className="mt-2 text-lg text-muted-foreground max-w-xl">
-            To get started, select or create a teammate profile.
+            To get started, select or create a teammate profile. This will be used for logging changes.
           </p>
            <div className="mt-6">
               <TeammateSelector />
            </div>
         </div>
       )
+    }
+
+    if (!activeAccount) {
+         return (
+        <div className="flex flex-col h-full">
+          <header className="flex justify-end items-center p-4 sm:p-6 lg:p-8 relative z-10">
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setRemindersOpen(true)}>
+                <Bell className="mr-2 h-4 w-4" />
+                Reminders
+              </Button>
+              <TeammateSelector />
+            </div>
+          </header>
+          <div className="flex-grow flex flex-col items-center justify-center text-center p-4 -mt-24">
+            <div className="flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 my-6 shadow-md">
+                <Users className="h-10 w-10 text-primary" />
+            </div>
+            <h1 className="text-4xl font-bold text-foreground tracking-tight">Select an Account</h1>
+            <p className="mt-2 text-lg text-muted-foreground max-w-lg">
+              Create a new account or select an existing one to manage your projects.
+            </p>
+             <div className="mt-6">
+                <AccountSelector />
+             </div>
+          </div>
+        </div>
+      );
     }
 
     if (!activeProject) {
@@ -61,6 +90,7 @@ export default function Home() {
                 <Bell className="mr-2 h-4 w-4" />
                 Reminders
               </Button>
+              <AccountSelector />
               <TeammateSelector />
             </div>
           </header>
@@ -106,6 +136,7 @@ export default function Home() {
                 <Bell className="mr-2 h-4 w-4" />
                 Reminders
               </Button>
+            <AccountSelector />
             <TeammateSelector />
           </div>
         </header>

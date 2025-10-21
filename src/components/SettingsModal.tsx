@@ -9,8 +9,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Settings } from 'lucide-react';
-import { useProject } from '@/context/ProjectContext';
-import { Button } from './ui/button';
+import { TeammateSelector } from './TeammateSelector';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -18,14 +17,6 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const { setActiveTeammate } = useProject();
-
-  const handleChangeUser = () => {
-    // By setting the active teammate to null, we trigger the selection modal on the main page.
-    setActiveTeammate(null);
-    onClose();
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
@@ -35,7 +26,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             Application Settings
           </DialogTitle>
           <DialogDescription>
-            Customize your CollabCal experience.
+            Manage your teammate profile.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
@@ -50,9 +41,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   Log in as a different teammate.
                 </p>
               </div>
-              <Button variant="outline" onClick={handleChangeUser}>
-                Change User
-              </Button>
+              <TeammateSelector />
             </div>
           </div>
         </div>

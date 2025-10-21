@@ -47,13 +47,13 @@ interface RemindersModalProps {
 }
 
 export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
-    const { projects, allProjectData, activeTeammate, getProjectById, updatePostInProject, movePostInProject } = useProject();
+    const { projects, allProjectData, getProjectById, updatePostInProject, movePostInProject } = useProject();
     const [upcomingPosts, setUpcomingPosts] = React.useState<ReminderPost[]>([]);
     const [missedPosts, setMissedPosts] = React.useState<ReminderPost[]>([]);
     const [viewingMonth, setViewingMonth] = React.useState(startOfToday());
 
     React.useEffect(() => {
-        if (!isOpen || !activeTeammate) {
+        if (!isOpen) {
             setUpcomingPosts([]);
             setMissedPosts([]);
             return;
@@ -67,9 +67,7 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
         const upcoming: ReminderPost[] = [];
         const missed: ReminderPost[] = [];
         
-        const accountProjects = projects.filter(p => p.accountId === activeTeammate.id);
-
-        for (const project of accountProjects) {
+        for (const project of projects) {
             const projectData = (allProjectData as Map<string, any>).get(project.id);
             if (!projectData || !projectData.calendars) continue;
 
@@ -94,7 +92,7 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
         
         setUpcomingPosts(upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
         setMissedPosts(missed.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-    }, [isOpen, projects, allProjectData, activeTeammate, viewingMonth]);
+    }, [isOpen, projects, allProjectData, viewingMonth]);
 
      const handleCloseMissedPost = (projectId: string, calendarId: string, date: string) => {
         setMissedPosts(prev => prev.filter(p => 
@@ -369,7 +367,7 @@ function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedP
                            </Select>
                            <Popover>
                                <PopoverTrigger asChild>
-                                   <Button variant="outline" size="icon"><Edit className="h-4 w-4"/></Button>
+                                   <Button variant="outline" size="icon"><Calendar className="h-4 w-4"/></Button>
                                </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0">
                                    <CalendarPicker mode="single" onSelect={(newDate) => { handleReschedule(newDate); }} initialFocus />
@@ -399,7 +397,7 @@ function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedP
                         </Select>
                         <Popover>
                             <PopoverTrigger asChild>
-                                <Button variant="outline" size="icon"><Edit className="h-4 w-4"/></Button>
+                                <Button variant="outline" size="icon"><Calendar className="h-4 w-4"/></Button>
                             </PopoverTrigger>
                              <PopoverContent className="w-auto p-0">
                                 <CalendarPicker mode="single" onSelect={(newDate) => handleReschedule(newDate)} initialFocus />
