@@ -23,7 +23,11 @@ import { ChevronsUpDown, Check, MoreHorizontal, Edit, Trash2, Plus, User, Loader
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
-export function TeammateSelector() {
+interface TeammateSelectorProps {
+    isPrimary?: boolean;
+}
+
+export function TeammateSelector({ isPrimary = false }: TeammateSelectorProps) {
     const { teammates, activeTeammate, setActiveTeammate, createTeammate, renameTeammate, deleteTeammate, loading, initializing } = useProject();
     const [isCreateOpen, setCreateOpen] = React.useState(false);
     const [isEditOpen, setEditOpen] = React.useState(false);
@@ -74,7 +78,7 @@ export function TeammateSelector() {
         setDeleteOpen(false);
     }
     
-    if (teammates.length === 0 && !initializing && !activeTeammate) {
+    if (isPrimary && teammates.length === 0 && !initializing && !activeTeammate) {
         return (
             <>
                  <Button onClick={() => setCreateOpen(true)}>

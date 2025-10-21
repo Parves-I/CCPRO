@@ -47,7 +47,7 @@ export default function Home() {
             To get started, select or create a teammate profile. This will be used for logging changes.
           </p>
            <div className="mt-6">
-              <TeammateSelector />
+              <TeammateSelector isPrimary />
            </div>
         </div>
       )
@@ -62,7 +62,6 @@ export default function Home() {
                 <Bell className="mr-2 h-4 w-4" />
                 Reminders
               </Button>
-              <TeammateSelector />
             </div>
           </header>
           <div className="flex-grow flex flex-col items-center justify-center text-center p-4 -mt-24">
@@ -91,7 +90,6 @@ export default function Home() {
                 Reminders
               </Button>
               <AccountSelector />
-              <TeammateSelector />
             </div>
           </header>
           <div className="flex-grow flex flex-col items-center justify-center text-center p-4 -mt-24">
@@ -137,7 +135,6 @@ export default function Home() {
                 Reminders
               </Button>
             <AccountSelector />
-            <TeammateSelector />
           </div>
         </header>
         <Card className="p-4 mb-6 shadow-sm">

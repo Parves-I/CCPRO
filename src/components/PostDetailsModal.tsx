@@ -129,6 +129,8 @@ export function PostDetailsModal({ isOpen, onClose, date, post }: PostDetailsMod
           toast({ title: 'Error', description: 'At least one platform is required.', variant: 'destructive' });
           return;
       }
+
+      const isNew = !post;
   
       const newPost: Post = {
           title: title.trim(),
@@ -142,7 +144,7 @@ export function PostDetailsModal({ isOpen, onClose, date, post }: PostDetailsMod
       const calendarGrid = document.querySelector('#calendar-grid-scroll-area');
       const scrollPos = calendarGrid?.scrollTop || 0;
       
-      updatePost(date, newPost);
+      updatePost(date, newPost, isNew);
       
       requestAnimationFrame(() => {
         calendarGrid?.scrollTo(0, scrollPos);
