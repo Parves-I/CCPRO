@@ -4,12 +4,12 @@ import jsPDF from 'jspdf';
 import { utils, writeFile } from 'xlsx';
 import type { Calendar, Post, PostStatus } from './types';
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, startOfWeek, endOfWeek, getMonth } from 'date-fns';
-import { InstagramIcon, YouTubeIcon, LinkedInIcon, FacebookIcon, WebsiteIcon, OtherPlatformIcon } from '@/components/icons';
+import { InstagramIconSimple, YouTubeIcon, LinkedInIcon, FacebookIcon, WebsiteIcon, OtherPlatformIcon } from '@/components/icons';
 import { svgToPng } from './svgUtils';
 
 // A map from platform names to their SVG icon components
 const platformIconMap: Record<string, (props: React.SVGProps<SVGSVGElement>) => JSX.Element> = {
-    Instagram: InstagramIcon,
+    Instagram: InstagramIconSimple,
     YouTube: YouTubeIcon,
     LinkedIn: LinkedInIcon,
     Facebook: FacebookIcon,
