@@ -19,6 +19,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import {nanoid} from 'nanoid';
 import { format } from 'date-fns';
+import { saveProjectAndLog } from '@/app/actions';
+
 
 const LAST_TEAMMATE_ID_KEY = 'collabcal-last-teammate-id';
 const LAST_ACCOUNT_ID_KEY = 'collabcal-last-account-id';
@@ -102,10 +104,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
   // Centralized logging function
   const addChangeLogEntry = React.useCallback((message: string) => {
-    if (!activeTeammate) return;
-    const finalMessage = `${message} by ${activeTeammate.name}.`;
-    setChangeLog(prev => [...prev, finalMessage]);
-  }, [activeTeammate]);
+    setChangeLog(prev => [...prev, message]);
+  }, []);
 
   const setActiveTeammate = (teammate: Teammate | null) => {
     setActiveTeammateInternal(teammate);
@@ -558,33 +558,24 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   };
 
   const saveProjectToDb = async () => {
-    if (!activeProject || !activeProjectData || !activeCalendar || !activeAccount || !activeTeammate) return;
+    if (!activeProject || !activeProjectData || !activeAccount || !activeTeammate) {
+        toast({ title: "Cannot Save", description: "Missing active project, account, or teammate.", variant: "destructive"});
+        return;
+    }
     setLoading(true);
+    
+    // We omit `lastModified` because the server will set it.
+    const { lastModified, ...dataToSave } = activeProjectData;
+
     try {
-      const projectRef = doc(db, 'accounts', activeAccount.id, 'projects', activeProject.id);
-      
-      const batch = writeBatch(db);
-      
-      const projectDataToSave = { ...activeProjectData, lastModified: serverTimestamp() };
-      batch.set(projectRef, projectDataToSave, {merge: true});
-      
-      const logsCollectionRef = collection(db, 'accounts', activeAccount.id, 'projects', activeProject.id, 'logs');
-      const ip = 'Unknown'; // Can't get IP on client side easily
+      const result = await saveProjectAndLog(activeAccount.id, activeProject.id, dataToSave, changeLog, activeTeammate.name);
 
-      changeLog.forEach(logText => {
-          const logEntry = {
-            timestamp: new Date(),
-            ipAddress: ip,
-            changeDescription: logText,
-          };
-          batch.set(doc(logsCollectionRef), logEntry);
-      });
-      
-      await batch.commit();
-      setChangeLog([]); // Clear log after saving
-
-      toast({ title: 'Project Saved!', description: 'Your changes have been saved to the cloud.' });
-
+      if (result.success) {
+        setChangeLog([]); // Clear log after successful save
+        toast({ title: 'Project Saved!', description: 'Your changes have been saved to the cloud.' });
+      } else {
+        toast({ title: 'Error', description: result.message, variant: 'destructive' });
+      }
     } catch (error) {
       console.error('Error saving project:', error);
       toast({

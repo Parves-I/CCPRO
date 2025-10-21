@@ -1,18 +1,17 @@
 'use server';
 
 import { headers } from 'next/headers';
-import { doc, setDoc, addDoc, collection, writeBatch } from 'firebase/firestore';
+import { doc, writeBatch, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { ProjectData } from '@/lib/types';
 
-// This function is kept for potential future use but is currently not used
-// as saving logic has been moved to the client-side context for simplicity
-// in the new teammate-based structure.
+
 export async function saveProjectAndLog(
   accountId: string, 
   projectId: string, 
-  projectData: ProjectData, 
-  calendarName: string
+  projectData: Omit<ProjectData, 'lastModified'>, 
+  changeLog: string[],
+  teammateName: string
 ) {
   const ip = headers().get('x-forwarded-for') || 'Unknown';
   
@@ -22,16 +21,32 @@ export async function saveProjectAndLog(
   try {
     const batch = writeBatch(db);
     
-    // 1. Save the project data
-    batch.set(projectDocRef, projectData);
+    // 1. Save the project data with a server timestamp
+    const projectDataToSave = {
+        ...projectData,
+        lastModified: serverTimestamp()
+    };
+    batch.set(projectDocRef, projectDataToSave, { merge: true });
 
-    // 2. Create a log entry
-    const logDocRef = doc(logsCollectionRef); // Create a new doc ref for the log
-    batch.set(logDocRef, {
-      timestamp: new Date(),
-      ipAddress: ip,
-      changeDescription: `Project "${projectData.name}" (Calendar: ${calendarName}) was saved.`,
-    });
+    // 2. Create log entries
+    if (changeLog.length > 0) {
+        changeLog.forEach(description => {
+            const logEntry = {
+              timestamp: serverTimestamp(),
+              ipAddress: ip,
+              changeDescription: `${description} by ${teammateName}.`,
+            };
+            batch.set(doc(logsCollectionRef), logEntry);
+        });
+    } else {
+        // Even if there are no specific changes, log the save action
+        const logEntry = {
+            timestamp: serverTimestamp(),
+            ipAddress: ip,
+            changeDescription: `Project "${projectData.name}" was saved by ${teammateName}.`,
+        };
+        batch.set(doc(logsCollectionRef), logEntry);
+    }
     
     await batch.commit();
 
