@@ -3,7 +3,7 @@
 import jsPDF from 'jspdf';
 import { utils, writeFile } from 'xlsx';
 import type { Calendar, Post, PostStatus } from './types';
-import { format, eachDayOfInterval, startOfMonth, endOfMonth, startOfWeek, endOfWeek, getMonth } from 'date-fns';
+import { format, eachDayOfInterval, startOfWeek, endOfWeek, getMonth, getYear } from 'date-fns';
 
 const statusColorMap: Record<PostStatus, string> = {
     Planned: '#cbd5e1',    // slate-300
@@ -32,27 +32,28 @@ export const exportToPDF = async (calendar: Calendar, projectName: string) => {
 
     const startDate = new Date(calendar.startDate + 'T00:00:00');
     const endDate = new Date(calendar.endDate + 'T00:00:00');
-    let currentMonth = -1;
-
-    const months = eachDayOfInterval({ start: startDate, end: endDate }).reduce((acc, date) => {
-        const month = date.getMonth();
-        if (!acc.includes(month)) {
-            acc.push(month);
+    
+    const months: {month: number, year: number}[] = [];
+    let loopDate = new Date(startDate);
+    while (loopDate <= endDate) {
+        const month = getMonth(loopDate);
+        const year = getYear(loopDate);
+        if (!months.some(m => m.month === month && m.year === year)) {
+            months.push({ month, year });
         }
-        return acc;
-    }, [] as number[]);
+        loopDate.setDate(loopDate.getDate() + 1);
+    }
 
     const totalPages = months.length;
     let pageNum = 0;
 
-    for (const month of months) {
+    for (const { month, year } of months) {
         pageNum++;
-        const currentMonthDate = new Date(startDate.getFullYear(), month, 1);
+        const currentMonthDate = new Date(year, month, 1);
         
-        if (currentMonth !== -1) {
+        if (pageNum > 1) {
             doc.addPage();
         }
-        currentMonth = month;
 
         // Header
         doc.setFontSize(20);
@@ -86,10 +87,12 @@ export const exportToPDF = async (calendar: Calendar, projectName: string) => {
         });
 
         // Calendar Grid
-        const monthStart = startOfMonth(currentMonthDate);
-        const monthEnd = endOfMonth(currentMonthDate);
+        const monthStart = new Date(Math.max(startDate.getTime(), currentMonthDate.getTime()));
+        const monthEnd = new Date(Math.min(endDate.getTime(), endOfWeek(currentMonthDate).getTime()));
+
         const calendarStart = startOfWeek(monthStart);
         const calendarEnd = endOfWeek(monthEnd);
+
         const daysInGrid = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
         
         const gridContentY = gridY + headerHeight;
