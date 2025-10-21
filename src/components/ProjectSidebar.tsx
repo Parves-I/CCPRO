@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useProject } from '@/context/ProjectContext';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, MoreHorizontal, Edit, Trash2, Loader2, Search, History } from 'lucide-react';
+import { Plus, MoreHorizontal, Edit, Trash2, Loader2, Search, History, Settings } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -33,6 +33,7 @@ import {
 import { cn } from '@/lib/utils';
 import { SidebarFooter, SidebarSeparator } from './ui/sidebar';
 import { ChangeHistoryModal } from './ChangeHistoryModal';
+import { SettingsModal } from './SettingsModal';
 import type { Project } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
@@ -40,6 +41,7 @@ export function ProjectSidebar() {
   const { projects, activeProject, setActiveProject, createProject, updateProject, deleteProject, loading, activeAccount } = useProject();
   const [isCreateOpen, setCreateOpen] = React.useState(false);
   const [isHistoryOpen, setHistoryOpen] = React.useState(false);
+  const [isSettingsOpen, setSettingsOpen] = React.useState(false);
   const [newProjectName, setNewProjectName] = React.useState('');
   const [searchTerm, setSearchTerm] = React.useState('');
   const { toast } = useToast();
@@ -118,15 +120,20 @@ export function ProjectSidebar() {
       </ScrollArea>
       <SidebarFooter>
         <SidebarSeparator />
-        <div className='p-2'>
+        <div className='p-2 space-y-1'>
             <Button variant="ghost" className="w-full justify-start" onClick={() => setHistoryOpen(true)} disabled={!activeProject}>
                 <History className="mr-2 h-4 w-4" />
                 Change History
+            </Button>
+            <Button variant="ghost" className="w-full justify-start" onClick={() => setSettingsOpen(true)}>
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
             </Button>
         </div>
       </SidebarFooter>
     </div>
     <ChangeHistoryModal isOpen={isHistoryOpen} onClose={() => setHistoryOpen(false)} />
+    <SettingsModal isOpen={isSettingsOpen} onClose={() => setSettingsOpen(false)} />
     </>
   );
 }
