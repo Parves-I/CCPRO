@@ -47,13 +47,13 @@ interface RemindersModalProps {
 }
 
 export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
-    const { projects, allProjectData, getProjectById, updatePostInProject, movePostInProject } = useProject();
+    const { projects, allProjectData, getProjectById, updatePostInProject, movePostInProject, activeAccount } = useProject();
     const [upcomingPosts, setUpcomingPosts] = React.useState<ReminderPost[]>([]);
     const [missedPosts, setMissedPosts] = React.useState<ReminderPost[]>([]);
     const [viewingMonth, setViewingMonth] = React.useState(startOfToday());
 
     React.useEffect(() => {
-        if (!isOpen) {
+        if (!isOpen || !activeAccount) {
             setUpcomingPosts([]);
             setMissedPosts([]);
             return;
@@ -67,7 +67,9 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
         const upcoming: ReminderPost[] = [];
         const missed: ReminderPost[] = [];
         
-        for (const project of projects) {
+        const accountProjects = projects.filter(p => p.accountId === activeAccount.id);
+        
+        for (const project of accountProjects) {
             const projectData = (allProjectData as Map<string, any>).get(project.id);
             if (!projectData || !projectData.calendars) continue;
 
@@ -92,7 +94,7 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
         
         setUpcomingPosts(upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
         setMissedPosts(missed.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-    }, [isOpen, projects, allProjectData, viewingMonth]);
+    }, [isOpen, projects, allProjectData, viewingMonth, activeAccount]);
 
      const handleCloseMissedPost = (projectId: string, calendarId: string, date: string) => {
         setMissedPosts(prev => prev.filter(p => 
@@ -107,10 +109,10 @@ export function RemindersModal({ isOpen, onClose }: RemindersModalProps) {
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-2xl">
                         <Bell className="h-6 w-6" />
-                        Reminders
+                        Reminders for {activeAccount?.name}
                     </DialogTitle>
                     <DialogDescription>
-                        A summary of your upcoming and missed posts.
+                        A summary of your upcoming and missed posts for the current account.
                     </DialogDescription>
                 </DialogHeader>
                 <Tabs defaultValue="upcoming" className="flex-grow flex flex-col min-h-0">
@@ -291,7 +293,7 @@ function PostsGrid({ posts, getProjectById, updatePostInProject, movePostInProje
 }
 
 function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedPost }: { post: ReminderPost, updatePostInProject: PostsGridProps['updatePostInProject'], movePostInProject: PostsGridProps['movePostInProject'], onCloseMissedPost?: PostsGridProps['onCloseMissedPost'] }) {
-    const [reason, setReason] = React.useState('');
+    const [reason, setReason] = React.useState(post.missedReason || '');
     const [isAlertOpen, setAlertOpen] = React.useState(false);
     const [isEditing, setIsEditing] = React.useState(false);
     
@@ -302,7 +304,8 @@ function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedP
         if (isResolutionView) {
             setIsEditing(false);
         }
-    }, [isResolutionView]);
+        setReason(post.missedReason || '');
+    }, [isResolutionView, post.missedReason]);
 
     const handleStatusUpdate = (newStatus: string) => {
         updatePostInProject(post.projectId, post.calendarId, post.date, { status: newStatus as Post['status'] });
@@ -314,7 +317,7 @@ function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedP
             return;
         }
         updatePostInProject(post.projectId, post.calendarId, post.date, { 
-            notes: post.notes ? `${post.notes}\n\nMissed Reason: ${reason.trim()}` : `Missed Reason: ${reason.trim()}`,
+            missedReason: reason.trim(),
             status: 'Missed' 
         });
         if(onCloseMissedPost) {
@@ -345,7 +348,7 @@ function PostCard({ post, updatePostInProject, movePostInProject, onCloseMissedP
                      <div className='space-y-2'>
                         <div>
                             <p className="text-sm font-medium text-foreground">Reason for Missing:</p>
-                            <p className="text-sm text-muted-foreground p-2 bg-background rounded-md border mt-1">{post.notes || 'No reason provided.'}</p>
+                            <p className="text-sm text-muted-foreground p-2 bg-background rounded-md border mt-1">{post.missedReason || 'No reason provided.'}</p>
                         </div>
                         <div className="flex justify-end">
                             <Button size="sm" variant="ghost" onClick={() => setIsEditing(true)}>
