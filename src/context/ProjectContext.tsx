@@ -66,6 +66,7 @@ interface ProjectContextType {
   deletePost: (date: string) => void;
   movePost: (sourceDate: string, destinationDate: string) => void;
   saveProjectToDb: () => Promise<void>;
+  restoreVersion: (snapshot: ProjectData) => Promise<void>;
   importCalendarData: (data: Partial<Calendar>) => void;
   updatePostInProject: (projectId: string, calendarId: string, date: string, postData: Partial<Post>) => void;
   movePostInProject: (projectId: string, calendarId: string, sourceDate: string, destinationDate: string) => void;
@@ -232,7 +233,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   }, [activeProject, activeAccount, allProjectData]);
 
-  // Helper function to persist activeProjectData to Firestore (Autosave)
   const persistActiveProjectData = async (updatedData: ProjectData) => {
     if (!activeProject || !activeAccount) return;
     const projectRef = doc(db, 'accounts', activeAccount.id, 'projects', activeProject.id);
@@ -252,10 +252,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     try {
         const docRef = await addDoc(teammatesCollectionRef, { name });
         setActiveTeammate({id: docRef.id, name});
-        toast({ title: 'Success', description: `User "${name}" added.`});
+        toast({ title: 'Success', description: `User profile "${name}" added.`});
     } catch (error) {
-        console.error('Error creating user:', error);
-        toast({ title: 'Error', description: 'Failed to add user.', variant: 'destructive' });
+        console.error('Error creating user profile:', error);
+        toast({ title: 'Error', description: 'Failed to add profile.', variant: 'destructive' });
     } finally {
         setLoading(false);
     }
@@ -267,10 +267,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const teammateDoc = doc(db, 'teammates', id);
     try {
         await updateDoc(teammateDoc, { name });
-        toast({ title: 'Success', description: 'User renamed.' });
+        toast({ title: 'Success', description: 'Name renamed.' });
     } catch (error) {
         console.error('Error renaming user:', error);
-        toast({ title: 'Error', description: 'Failed to rename user.', variant: 'destructive' });
+        toast({ title: 'Error', description: 'Failed to rename profile.', variant: 'destructive' });
     } finally {
         setLoading(false);
     }
@@ -280,10 +280,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
         await deleteDoc(doc(db, 'teammates', id));
-        toast({ title: 'Success', description: 'User deleted.' });
+        toast({ title: 'Success', description: 'User profile deleted.' });
     } catch (error) {
-        console.error('Error deleting user:', error);
-        toast({ title: 'Error', description: 'Failed to delete user.', variant: 'destructive' });
+        console.error('Error deleting profile:', error);
+        toast({ title: 'Error', description: 'Failed to delete profile.', variant: 'destructive' });
     } finally {
         setLoading(false);
     }
@@ -295,7 +295,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     try {
         const docRef = await addDoc(accountsCollectionRef, { name });
         setActiveAccount({id: docRef.id, name});
-        addChangeLogEntry(`Created account "${name}"`);
         toast({ title: 'Success', description: `Account "${name}" created.`});
     } catch (error) {
         console.error('Error creating account:', error);
@@ -307,12 +306,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
   const renameAccount = async (id: string, name: string) => {
     if (!name.trim()) return;
-    const originalName = accounts.find(acc => acc.id === id)?.name || '';
     setLoading(true);
     const accountDoc = doc(db, 'accounts', id);
     try {
         await updateDoc(accountDoc, { name });
-        addChangeLogEntry(`Renamed account from "${originalName}" to "${name}"`);
         toast({ title: 'Success', description: 'Account renamed.' });
     } catch (error) {
         console.error('Error renaming account:', error);
@@ -325,7 +322,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const deleteAccount = async (id: string) => {
     setLoading(true);
     try {
-        const accountName = accounts.find(acc => acc.id === id)?.name || 'Unknown Account';
         const projectsQuery = query(collection(db, 'accounts', id, 'projects'));
         const projectsSnapshot = await getDocs(projectsQuery);
         const batch = writeBatch(db);
@@ -340,7 +336,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         batch.delete(doc(db, 'accounts', id));
         await batch.commit();
 
-        addChangeLogEntry(`Deleted account "${accountName}"`);
         toast({ title: 'Success', description: 'Account deleted.' });
 
     } catch (error) {
@@ -367,7 +362,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       
       const newProject = { ...initialData, id: docRef.id, accountId, lastModified: new Date() } as Project;
       setActiveProject(newProject);
-      addChangeLogEntry(`Created project "${name}"`);
       toast({ title: 'Success', description: `Project "${name}" created.` });
     } catch (error) {
       console.error('Error creating project:', error);
@@ -387,7 +381,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const projectDoc = doc(db, 'accounts', accountId, 'projects', id);
     try {
       await updateDoc(projectDoc, { name, lastModified: serverTimestamp() });
-      addChangeLogEntry(`Renamed project to "${name}"`);
       toast({ title: 'Success', description: 'Project renamed.' });
     } catch (error) {
       console.error('Error updating project:', error);
@@ -405,7 +398,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (!activeAccount) return;
     setLoading(true);
     try {
-      const projectName = projects.find(p => p.id === id)?.name || 'Unknown Project';
       const projectDocRef = doc(db, 'accounts', activeAccount.id, 'projects', id);
       const logsCollectionRef = collection(db, 'accounts', activeAccount.id, 'projects', id, 'logs');
       const logsSnapshot = await getDocs(logsCollectionRef);
@@ -418,7 +410,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       if (activeProject?.id === id) {
         setActiveProject(null);
       }
-      addChangeLogEntry(`Deleted project "${projectName}"`);
       toast({ title: 'Success', description: 'Project deleted.' });
     } catch (error) {
       console.error('Error deleting project:', error);
@@ -440,7 +431,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       const updatedData = { ...activeProjectData, activeCalendarId: calendarId };
       setActiveProjectData(updatedData);
       persistActiveProjectData(updatedData);
-      addChangeLogEntry(`Viewed "${newActiveCalendar.name}"`);
     }
   };
 
@@ -458,13 +448,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     setActiveProjectData(updatedData);
     setActiveCalendar(newCalendar);
     persistActiveProjectData(updatedData);
-    addChangeLogEntry(`Created calendar "${name}"`);
-    toast({ title: 'Added', description: `"${name}" added.` });
+    toast({ title: 'Success', description: 'Calendar added.' });
   };
 
   const renameCalendar = (calendarId: string, newName: string) => {
     if (!activeProjectData) return;
-    const originalName = activeProjectData.calendars.find(c => c.id === calendarId)?.name || '';
     const updatedCalendars = activeProjectData.calendars.map(c => 
       c.id === calendarId ? { ...c, name: newName } : c
     );
@@ -474,14 +462,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       setActiveCalendar(prev => prev ? {...prev, name: newName} : null);
     }
     persistActiveProjectData(updatedData);
-    addChangeLogEntry(`Renamed calendar to "${newName}"`);
-    toast({ title: 'Renamed' });
+    toast({ title: 'Success', description: 'Calendar renamed.' });
   }
 
   const deleteCalendar = (calendarId: string) => {
     if (!activeProjectData) return;
 
-    const calendarName = activeProjectData.calendars.find(c => c.id === calendarId)?.name || '';
     const updatedCalendars = activeProjectData.calendars.filter(c => c.id !== calendarId);
     
     let newActiveCalendarId = activeProjectData.activeCalendarId;
@@ -493,8 +479,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     setActiveProjectData(updatedData);
     setActiveCalendar(updatedCalendars.find(c => c.id === newActiveCalendarId) || null);
     persistActiveProjectData(updatedData);
-    addChangeLogEntry(`Deleted calendar "${calendarName}"`);
-    toast({ title: 'Deleted' });
+    toast({ title: 'Success', description: 'Calendar deleted.' });
   }
 
   const updateActiveCalendar = (data: Partial<Calendar>) => {
@@ -512,14 +497,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (!activeCalendar || !activeProjectData) return;
 
     if (isNew) {
-        addChangeLogEntry(`Created post "${post.title}" on ${format(new Date(date), 'MM/dd/yyyy')}`);
+        addChangeLogEntry(`Added "${post.title}" on ${format(new Date(date), 'MM/dd')}`);
     } else {
-        const originalPost = activeCalendar.calendarData[date];
-        if (originalPost?.status !== post.status) {
-            addChangeLogEntry(`Updated "${post.title}" to ${post.status}`);
-        } else {
-            addChangeLogEntry(`Updated "${post.title}"`);
-        }
+        addChangeLogEntry(`Updated "${post.title}"`);
     }
 
     const newCalendarData = { ...activeCalendar.calendarData, [date]: post };
@@ -545,7 +525,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
     if (!sourcePost) return; 
 
-    addChangeLogEntry(`Moved "${sourcePost.title}" to ${format(new Date(destinationDate), 'MM/dd/yyyy')}`);
+    addChangeLogEntry(`Moved "${sourcePost.title}" to ${format(new Date(destinationDate), 'MM/dd')}`);
     
     delete newCalendarData[sourceDate];
     newCalendarData[destinationDate] = sourcePost;
@@ -558,7 +538,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
   const saveProjectToDb = async () => {
     if (!activeProject || !activeProjectData || !activeAccount || !activeTeammate) {
-        toast({ title: "Error", description: "Pick a project and user.", variant: "destructive"});
+        toast({ title: "Error", description: "Pick account and user.", variant: "destructive"});
         return;
     }
     setLoading(true);
@@ -570,7 +550,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
       if (result.success) {
         setChangeLog([]);
-        toast({ title: 'Saved', description: 'Your progress is saved.' });
+        toast({ title: 'Success', description: 'Project saved to history.' });
       } else {
         toast({ title: 'Error', description: result.message, variant: 'destructive' });
       }
@@ -578,13 +558,31 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       console.error('Save error:', error);
       toast({
         title: 'Error',
-        description: 'Save failed.',
+        description: 'Failed to save.',
         variant: 'destructive',
       });
     } finally {
       setLoading(false);
     }
   };
+
+  const restoreVersion = async (snapshot: ProjectData) => {
+    if (!activeProject || !activeAccount) return;
+    setLoading(true);
+    try {
+      const projectRef = doc(db, 'accounts', activeAccount.id, 'projects', activeProject.id);
+      await updateDoc(projectRef, {
+        ...snapshot,
+        lastModified: serverTimestamp()
+      });
+      toast({ title: 'Success', description: 'Project restored.' });
+    } catch (error) {
+      console.error('Restore error:', error);
+      toast({ title: 'Error', description: 'Failed to restore version.', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }
   
   const importCalendarData = (data: Partial<Calendar>) => {
     if (!activeCalendar) {
@@ -605,8 +603,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       endDate: data.endDate,
       calendarData: calendarData,
     });
-    addChangeLogEntry(`Imported data`);
-    toast({ title: 'Imported' });
+    toast({ title: 'Success', description: 'Data imported.' });
   }
 
   const getProjectById = (projectId: string) => {
@@ -703,6 +700,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     deletePost,
     movePost,
     saveProjectToDb,
+    restoreVersion,
     importCalendarData,
     updatePostInProject,
     movePostInProject,

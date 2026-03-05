@@ -28,32 +28,27 @@ export async function saveProjectAndLog(
     };
     batch.set(projectDocRef, projectDataToSave, { merge: true });
 
-    // 2. Create log entries
-    if (changeLog.length > 0) {
-        changeLog.forEach(description => {
-            const logEntry = {
-              timestamp: serverTimestamp(),
-              ipAddress: ip,
-              changeDescription: `${description} by ${teammateName}.`,
-            };
-            batch.set(doc(logsCollectionRef), logEntry);
-        });
-    } else {
-        // Even if there are no specific changes, log the save action
-        const logEntry = {
-            timestamp: serverTimestamp(),
-            ipAddress: ip,
-            changeDescription: `Project "${projectData.name}" was saved by ${teammateName}.`,
-        };
-        batch.set(doc(logsCollectionRef), logEntry);
-    }
+    // 2. Create a single log entry for this "Save" action containing the snapshot
+    const description = changeLog.length > 0 
+      ? changeLog.join(', ') 
+      : `Saved by ${teammateName}.`;
+
+    const logEntry = {
+      timestamp: serverTimestamp(),
+      ipAddress: ip,
+      changeDescription: description,
+      snapshot: projectData, // Store the full state for restoration
+      author: teammateName
+    };
+    
+    batch.set(doc(logsCollectionRef), logEntry);
     
     await batch.commit();
 
-    return { success: true, message: 'Project saved successfully!' };
+    return { success: true, message: 'Saved successfully!' };
   } catch (error) {
-    console.error('Error saving project and creating log:', error);
+    console.error('Error saving project:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-    return { success: false, message: `Failed to save project: ${errorMessage}` };
+    return { success: false, message: `Save failed: ${errorMessage}` };
   }
 }
