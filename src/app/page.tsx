@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { CalendarIcon, Loader2, User } from 'lucide-react';
+import { CalendarIcon, Loader2, Bell, Users, Plus, CheckCircle2 } from 'lucide-react';
 import {
   Sidebar,
   SidebarHeader,
@@ -18,108 +18,52 @@ import { useProject } from '@/context/ProjectContext';
 import { FilterControls } from '@/components/FilterControls';
 import { Card } from '@/components/ui/card';
 import { CalendarSelector } from '@/components/CalendarSelector';
+import { TeammateSelector } from '@/components/TeammateSelector';
+import { RemindersModal } from '@/components/RemindersModal';
 import { AccountSelector } from '@/components/AccountSelector';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { format } from 'date-fns';
 
 export default function Home() {
-  const { loading, activeProject, activeCalendar, initializing, accounts } = useProject();
+  const { 
+    loading, 
+    activeProject, 
+    activeCalendar, 
+    initializing, 
+    teammates, 
+    activeTeammate, 
+    activeAccount, 
+    activeProjectData,
+    createCalendar
+  } = useProject();
+  const [isRemindersOpen, setRemindersOpen] = React.useState(false);
+  const [isCreateCalendarOpen, setCreateCalendarOpen] = React.useState(false);
+  const [newCalendarName, setNewCalendarName] = React.useState('');
 
-  const MainContent = () => {
-    if (initializing) {
-      return (
-        <div className="flex h-full flex-col items-center justify-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="mt-4 text-muted-foreground">Initializing CollabCal...</p>
-        </div>
-      );
-    }
-    
-    if (accounts.length === 0) {
-      return (
-         <div className="flex h-full flex-col items-center justify-center text-center p-4">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-16 h-16 text-primary/50 mb-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m-3.74-2.228a3 3 0 0 0-4.682-2.72 8.985 8.985 0 0 0-3.74 2.228m12.162 0A9.043 9.043 0 0 1 12 18.75c-2.673 0-5.14-1-7.071-2.757M12 21a9.043 9.043 0 0 1-7.071-2.757" />
-            </svg>
-          <h1 className="text-4xl font-bold text-foreground tracking-tight">Welcome to CollabCal</h1>
-          <p className="mt-2 text-lg text-muted-foreground max-w-xl">
-            To get started, create an account. Accounts help you organize your projects. For example, you could have an account for "Personal" and another for "Work".
-          </p>
-           <div className="mt-6">
-              <AccountSelector />
-           </div>
-        </div>
-      )
-    }
+  const handleCreateCalendar = () => {
+    if(!newCalendarName.trim()) return;
+    createCalendar(newCalendarName.trim());
+    setNewCalendarName('');
+    setCreateCalendarOpen(false);
+  }
 
-    if (!activeProject) {
-      return (
-        <div className="flex flex-col h-full">
-          <header className="flex justify-end items-center p-4 sm:p-6 lg:p-8 relative z-10">
-            <AccountSelector />
-          </header>
-          <div className="flex-grow flex flex-col items-center justify-center text-center p-4 -mt-24">
-            <div className="flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 my-6 shadow-md">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-10 w-10 text-primary"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-            </div>
-            <h1 className="text-4xl font-bold text-foreground tracking-tight">Select a Project</h1>
-            <p className="mt-2 text-lg text-muted-foreground max-w-lg">
-              Create a new project or select an existing one from the sidebar to get started.
-            </p>
-          </div>
-        </div>
-      );
+  const lastSavedText = React.useMemo(() => {
+    if (!activeProject?.lastModified) return null;
+    let date: Date;
+    // Check if it's a Firestore Timestamp or a Date object
+    if (activeProject.lastModified instanceof Date) {
+      date = activeProject.lastModified;
+    } else if (activeProject.lastModified && 'seconds' in (activeProject.lastModified as any)) {
+      date = new Date((activeProject.lastModified as any).seconds * 1000);
+    } else {
+        // Fallback for draft/local state
+        date = new Date();
     }
+    return `Saved: ${format(date, 'MMM d, h:mm:ss a')}`;
+  }, [activeProject?.lastModified]);
 
-    return (
-      <div className="flex flex-col h-full p-4 sm:p-6 lg:p-8">
-        <header className="mb-6 flex items-center justify-between flex-wrap gap-4">
-          <div className='flex items-center gap-4'>
-             <div className="md:hidden">
-                <SidebarTrigger />
-             </div>
-            <h1 className="text-3xl font-bold text-foreground">{activeProject.name}</h1>
-            <CalendarSelector />
-          </div>
-          <div className="flex items-center gap-4">
-            <AccountSelector />
-            {loading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
-          </div>
-        </header>
-        <Card className="p-4 mb-6 shadow-sm">
-          <CalendarControls />
-          <FilterControls />
-        </Card>
-        <div className='flex flex-col flex-grow min-h-0'>
-          <Card className="flex-grow p-4 sm:p-6 shadow-sm overflow-auto">
-            {activeCalendar && activeCalendar.startDate && activeCalendar.endDate ? (
-              <CalendarGrid />
-            ) : (
-              <div className="text-center py-20 h-full flex flex-col items-center justify-center">
-                <CalendarIcon className="mx-auto h-16 w-16 text-muted-foreground/30" strokeWidth="1" />
-                <h3 className="mt-4 text-xl font-medium text-foreground">Your Calendar Awaits</h3>
-                <p className="mt-1 text-md text-muted-foreground">
-                  Select a start and end date to begin planning your content.
-                </p>
-              </div>
-            )}
-          </Card>
-        </div>
-      </div>
-    );
-  };
-  
   return (
     <SidebarProvider>
       <Sidebar side="left" collapsible="icon">
@@ -130,7 +74,7 @@ export default function Home() {
                 CCPRO
               </h1>
               <a href="https://www.wedefinenet.com" target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:underline">
-                  Powered by We Define Net
+                  by We Define Net
               </a>
             </div>
             <div className="md:hidden">
@@ -159,11 +103,180 @@ export default function Home() {
           <ProjectSidebar />
         </SidebarContent>
       </Sidebar>
-      <SidebarInset className="bg-body-background">
+      <SidebarInset className="bg-body-background relative">
         <main className="min-h-screen max-h-screen flex flex-col">
-          <MainContent />
+          {initializing ? (
+            <div className="flex h-full flex-col items-center justify-center">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              <p className="mt-4 text-muted-foreground">Starting...</p>
+            </div>
+          ) : !activeTeammate ? (
+            <div className="flex h-full flex-col items-center justify-center text-center p-4">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-16 h-16 text-primary/50 mb-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m-3.74-2.228a3 3 0 0 0-4.682-2.72 8.985 8.985 0 0 0-3.74 2.228m12.162 0A9.043 9.043 0 0 1 12 18.75c-2.673 0-5.14-1-7.071-2.757M12 21a9.043 9.043 0 0 1-7.071-2.757" />
+                </svg>
+              <h1 className="text-4xl font-bold text-foreground tracking-tight">Welcome</h1>
+              <p className="mt-2 text-lg text-muted-foreground max-w-xl">
+                Pick who you are to start.
+              </p>
+               <div className="mt-6">
+                  <TeammateSelector isPrimary />
+               </div>
+            </div>
+          ) : !activeAccount ? (
+            <div className="flex flex-col h-full">
+              <header className="flex justify-end items-center p-4 sm:p-6 lg:p-8 relative z-10">
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={() => setRemindersOpen(true)}>
+                    <Bell className="mr-2 h-4 w-4" />
+                    Alerts
+                  </Button>
+                </div>
+              </header>
+              <div className="flex-grow flex flex-col items-center justify-center text-center p-4 -mt-24">
+                <div className="flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 my-6 shadow-md">
+                    <Users className="h-10 w-10 text-primary" />
+                </div>
+                <h1 className="text-4xl font-bold text-foreground tracking-tight">Pick an Account</h1>
+                <p className="mt-2 text-lg text-muted-foreground max-w-lg">
+                  Choose or add an account.
+                </p>
+                 <div className="mt-6">
+                    <AccountSelector />
+                 </div>
+              </div>
+            </div>
+          ) : !activeProject ? (
+            <div className="flex flex-col h-full">
+              <header className="flex justify-end items-center p-4 sm:p-6 lg:p-8 relative z-10">
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={() => setRemindersOpen(true)}>
+                    <Bell className="mr-2 h-4 w-4" />
+                    Alerts
+                  </Button>
+                  <AccountSelector />
+                </div>
+              </header>
+              <div className="flex-grow flex flex-col items-center justify-center text-center p-4 -mt-24">
+                <div className="flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 my-6 shadow-md">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-10 w-10 text-primary"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                </div>
+                <h1 className="text-4xl font-bold text-foreground tracking-tight">Pick a Project</h1>
+                <p className="mt-2 text-lg text-muted-foreground max-w-lg">
+                  Choose a project from the side.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col h-full p-4 sm:p-6 lg:p-8">
+              <header className="mb-6 flex items-center justify-between flex-wrap gap-4">
+                <div className='flex items-center gap-4'>
+                   <div className="md:hidden">
+                      <SidebarTrigger />
+                   </div>
+                  <h1 className="text-3xl font-bold text-foreground">{activeProject.name}</h1>
+                  {activeProjectData?.calendars && activeProjectData.calendars.length > 0 && (
+                    <CalendarSelector />
+                  )}
+                </div>
+                <div className="flex items-center gap-4">
+                  {loading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
+                   <Button variant="outline" onClick={() => setRemindersOpen(true)}>
+                      <Bell className="mr-2 h-4 w-4" />
+                      Alerts
+                    </Button>
+                  <AccountSelector />
+                </div>
+              </header>
+
+              {activeProjectData?.calendars && activeProjectData.calendars.length > 0 ? (
+                <>
+                  <Card className="p-4 mb-6 shadow-sm">
+                    <CalendarControls />
+                    <FilterControls />
+                  </Card>
+                  <div className='flex flex-col flex-grow min-h-0'>
+                    <Card id="calendar-grid-scroll-area" className="flex-grow p-4 sm:p-6 shadow-sm overflow-auto">
+                      {activeCalendar && activeCalendar.startDate && activeCalendar.endDate ? (
+                        <CalendarGrid />
+                      ) : (
+                        <div className="text-center py-20 h-full flex flex-col items-center justify-center">
+                          <CalendarIcon className="mx-auto h-16 w-16 text-muted-foreground/30" strokeWidth="1" />
+                          <h3 className="mt-4 text-xl font-medium text-foreground">Set Dates</h3>
+                          <p className="mt-1 text-md text-muted-foreground">
+                            Pick a start and end date above.
+                          </p>
+                        </div>
+                      )}
+                    </Card>
+                  </div>
+                </>
+              ) : (
+                <div className="flex-grow flex flex-col items-center justify-center text-center p-4">
+                   <div className="flex items-center justify-center w-24 h-24 rounded-full bg-primary/5 my-6 shadow-sm">
+                      <CalendarIcon className="h-12 w-12 text-primary/40" />
+                   </div>
+                   <h2 className="text-3xl font-bold text-foreground">No Calendars</h2>
+                   <p className="mt-2 text-lg text-muted-foreground max-w-md">
+                     Add a calendar to start.
+                   </p>
+                   <Button size="lg" className="mt-8 shadow-lg" onClick={() => setCreateCalendarOpen(true)}>
+                      <Plus className="mr-2 h-5 w-5" />
+                      Add First Calendar
+                   </Button>
+                </div>
+              )}
+            </div>
+          )}
         </main>
+        
+        {/* Dynamic Autosave Indicator */}
+        {activeProject && lastSavedText && (
+          <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 bg-background/80 backdrop-blur-sm border px-3 py-1.5 rounded-full shadow-sm text-xs text-muted-foreground transition-all duration-300">
+            <CheckCircle2 className="h-3 w-3 text-green-500" />
+            <span>{lastSavedText}</span>
+          </div>
+        )}
       </SidebarInset>
+      <RemindersModal isOpen={isRemindersOpen} onClose={() => setRemindersOpen(false)} />
+
+      <Dialog open={isCreateCalendarOpen} onOpenChange={setCreateCalendarOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Add Calendar</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+                <Label htmlFor='first-calendar-name'>Name</Label>
+                <Input 
+                  id='first-calendar-name' 
+                  value={newCalendarName} 
+                  onChange={(e) => setNewCalendarName(e.target.value)} 
+                  placeholder="e.g., Q4 Plan"
+                  className="mt-2"
+                />
+            </div>
+            <DialogFooter>
+                <Button variant="ghost" onClick={() => setCreateCalendarOpen(false)}>Cancel</Button>
+                <Button onClick={handleCreateCalendar} disabled={!newCalendarName.trim() || loading}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Add
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   );
 }

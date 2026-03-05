@@ -45,6 +45,8 @@ export function FilterControls() {
     return <Badge variant="secondary" className="ml-auto font-normal">{filterList.length}</Badge>
   }
 
+  const availableStatuses = POST_STATUSES.filter(s => s !== 'Missed');
+
   return (
     <div className="mt-4 flex flex-wrap items-center gap-2">
         <DropdownMenu>
@@ -58,7 +60,7 @@ export function FilterControls() {
             <DropdownMenuContent className="w-56" align="start">
             <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {POST_STATUSES.map(status => (
+            {availableStatuses.map(status => (
                 <DropdownMenuCheckboxItem
                 key={status}
                 checked={filters.status.includes(status)}

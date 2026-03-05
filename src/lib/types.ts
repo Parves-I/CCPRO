@@ -20,10 +20,11 @@ export type PostType = typeof POST_TYPES[number];
 
 export const POST_STATUSES = [
     "Planned",
-    "On Approval",
+    "Edited",
+    "Approved",
     "Scheduled",
     "Posted",
-    "Edited",
+    "Missed",
 ] as const;
 
 export type PostStatus = typeof POST_STATUSES[number];
@@ -47,9 +48,15 @@ export interface Post {
   platforms: string[]; // Can include Platform or custom strings
   color: ThemeColor;
   status: PostStatus;
+  missedReason?: string; // New field for missed posts
 }
 
 export type CalendarData = Record<string, Post>; // Key is "YYYY-MM-DD"
+
+export interface Teammate {
+  id: string;
+  name: string;
+}
 
 export interface Account {
   id: string;
@@ -60,6 +67,10 @@ export interface Project {
   id: string;
   name: string;
   accountId: string;
+  lastModified: {
+    seconds: number;
+    nanoseconds: number;
+  } | Date;
 }
 
 export interface Calendar {
@@ -74,4 +85,5 @@ export interface ProjectData {
   name: string;
   calendars: Calendar[];
   activeCalendarId: string | null;
+  lastModified: Date;
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import type { Project, ProjectData, Post, PostStatus, PostType, Calendar, Account } from '@/lib/types';
+import type { Project, ProjectData, Post, PostStatus, PostType, Calendar, Teammate, Account } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import {
   collection,
@@ -13,10 +13,16 @@ import {
   writeBatch,
   query,
   onSnapshot,
-  collectionGroup,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {nanoid} from 'nanoid';
+import { format } from 'date-fns';
+import { saveProjectAndLog } from '@/app/actions';
+
+
+const LAST_TEAMMATE_ID_KEY = 'collabcal-last-teammate-id';
+const LAST_ACCOUNT_ID_KEY = 'collabcal-last-account-id';
 
 interface Filters {
     status: PostStatus[];
@@ -27,6 +33,8 @@ interface Filters {
 interface ProjectContextType {
   initializing: boolean;
   loading: boolean;
+  teammates: Teammate[];
+  activeTeammate: Teammate | null;
   accounts: Account[];
   activeAccount: Account | null;
   projects: Project[];
@@ -34,7 +42,12 @@ interface ProjectContextType {
   activeProjectData: ProjectData | null;
   activeCalendar: Calendar | null;
   filters: Filters;
+  allProjectData: Map<string, ProjectData>;
   setFilters: React.Dispatch<React.SetStateAction<Filters>>;
+  createTeammate: (name: string) => Promise<void>;
+  renameTeammate: (id: string, name: string) => Promise<void>;
+  deleteTeammate: (id: string) => Promise<void>;
+  setActiveTeammate: (teammate: Teammate | null) => void;
   createAccount: (name: string) => Promise<void>;
   renameAccount: (id: string, name: string) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
@@ -48,11 +61,14 @@ interface ProjectContextType {
   updateActiveCalendar: (data: Partial<Calendar>) => void;
   renameCalendar: (calendarId: string, newName: string) => void;
   deleteCalendar: (calendarId: string) => void;
-  updatePost: (date: string, post: Post) => void;
+  updatePost: (date: string, post: Post, isNew: boolean) => void;
   deletePost: (date: string) => void;
   movePost: (sourceDate: string, destinationDate: string) => void;
   saveProjectToDb: () => Promise<void>;
   importCalendarData: (data: Partial<Calendar>) => void;
+  updatePostInProject: (projectId: string, calendarId: string, date: string, postData: Partial<Post>) => void;
+  movePostInProject: (projectId: string, calendarId: string, sourceDate: string, destinationDate: string) => void;
+  getProjectById: (projectId: string) => Project | undefined;
 }
 
 const ProjectContext = React.createContext<ProjectContextType | undefined>(undefined);
@@ -60,12 +76,20 @@ const ProjectContext = React.createContext<ProjectContextType | undefined>(undef
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [initializing, setInitializing] = React.useState(true);
   const [loading, setLoading] = React.useState(false);
+  
+  const [teammates, setTeammates] = React.useState<Teammate[]>([]);
+  const [activeTeammate, setActiveTeammateInternal] = React.useState<Teammate | null>(null);
+
   const [accounts, setAccounts] = React.useState<Account[]>([]);
   const [activeAccount, setActiveAccount] = React.useState<Account | null>(null);
+  
   const [projects, setProjects] = React.useState<Project[]>([]);
+  const [allProjectData, setAllProjectData] = React.useState<Map<string, ProjectData>>(new Map());
   const [activeProject, setActiveProject] = React.useState<Project | null>(null);
   const [activeProjectData, setActiveProjectData] = React.useState<ProjectData | null>(null);
   const [activeCalendar, setActiveCalendar] = React.useState<Calendar | null>(null);
+
+  const [changeLog, setChangeLog] = React.useState<string[]>([]);
 
   const [filters, setFilters] = React.useState<Filters>({
     status: [],
@@ -74,64 +98,91 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   });
   const { toast } = useToast();
 
+  const teammatesCollectionRef = collection(db, 'teammates');
   const accountsCollectionRef = collection(db, 'accounts');
 
-  // Initial data fetch and listeners setup
-  React.useEffect(() => {
-    setInitializing(true);
+  const addChangeLogEntry = React.useCallback((message: string) => {
+    setChangeLog(prev => [...prev, message]);
+  }, []);
 
-    const unsubscribeAccounts = onSnapshot(accountsCollectionRef, 
-      (snapshot) => {
+  const setActiveTeammate = (teammate: Teammate | null) => {
+    setActiveTeammateInternal(teammate);
+    if(teammate) {
+        localStorage.setItem(LAST_TEAMMATE_ID_KEY, teammate.id);
+    } else {
+        localStorage.removeItem(LAST_TEAMMATE_ID_KEY);
+    }
+  }
+
+  // Handle teammates and accounts
+  React.useEffect(() => {
+    const lastUsedTeammateId = localStorage.getItem(LAST_TEAMMATE_ID_KEY);
+    const lastUsedAccountId = localStorage.getItem(LAST_ACCOUNT_ID_KEY);
+
+    const unsubscribeTeammates = onSnapshot(teammatesCollectionRef, (snapshot) => {
+        const fetchedTeammates = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Teammate));
+        setTeammates(fetchedTeammates);
+        if (fetchedTeammates.length > 0) {
+            const teammateToSet = lastUsedTeammateId 
+                ? (fetchedTeammates.find(a => a.id === lastUsedTeammateId) || null)
+                : null;
+            if (activeTeammate?.id !== teammateToSet?.id) {
+                setActiveTeammate(teammateToSet);
+            }
+        } else {
+            setActiveTeammate(null);
+        }
+    });
+
+    const unsubscribeAccounts = onSnapshot(accountsCollectionRef, (snapshot) => {
         const fetchedAccounts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Account));
         setAccounts(fetchedAccounts);
-        
-        if (!activeAccount && fetchedAccounts.length > 0) {
-            setActiveAccount(fetchedAccounts[0]);
-        } else if (activeAccount && !fetchedAccounts.some(a => a.id === activeAccount.id)) {
-            setActiveAccount(fetchedAccounts[0] || null);
+        if (fetchedAccounts.length > 0) {
+            const accountToSet = lastUsedAccountId 
+                ? (fetchedAccounts.find(a => a.id === lastUsedAccountId) || fetchedAccounts[0])
+                : fetchedAccounts[0];
+            if (activeAccount?.id !== accountToSet?.id) {
+                setActiveAccount(accountToSet);
+            }
+        } else if (activeAccount) {
+            setActiveAccount(null);
         }
-        
-        // This is a one-time migration for old data structure
-        if (snapshot.docs.length === 0) {
-            console.log("No accounts found, attempting to migrate old projects...");
-            (async () => {
-                const oldProjectsSnapshot = await getDocs(collection(db, 'projects'));
-                if(oldProjectsSnapshot.empty) {
-                    console.log("No old projects to migrate. Creating default 'Socials' account.");
-                    const newAccountRef = await addDoc(accountsCollectionRef, { name: 'Socials' });
-                    // The onSnapshot listener will then pick this up.
-                    setInitializing(false);
-                    return;
-                }
+    });
 
-                const newAccountRef = await addDoc(accountsCollectionRef, { name: 'Socials' });
-                const newAccount = { id: newAccountRef.id, name: 'Socials' };
-                const batch = writeBatch(db);
+    return () => {
+      unsubscribeTeammates();
+      unsubscribeAccounts();
+    };
+  }, []);
 
-                oldProjectsSnapshot.forEach(oldDoc => {
-                    const newProjectRef = doc(db, 'accounts', newAccount.id, 'projects', oldDoc.id);
-                    batch.set(newProjectRef, oldDoc.data());
-                    batch.delete(oldDoc.ref);
-                });
-
-                await batch.commit();
-                console.log("Migration complete.");
-                // The snapshot listener will pick up the new account.
-            })();
-        }
-      }, 
-      (error) => {
-        console.error("Error fetching accounts:", error);
-        toast({ title: "Error", description: "Could not fetch accounts.", variant: "destructive" });
+  // Handle project syncing based on activeAccount
+  React.useEffect(() => {
+    if (!activeAccount) {
+        setProjects([]);
+        setAllProjectData(new Map());
         setInitializing(false);
-      }
-    );
-    
-    const projectsQuery = query(collectionGroup(db, 'projects'));
-    const unsubscribeProjects = onSnapshot(projectsQuery, 
+        return;
+    }
+
+    setInitializing(true);
+    const projectsRef = collection(db, 'accounts', activeAccount.id, 'projects');
+    const unsubscribeProjects = onSnapshot(projectsRef, 
         (snapshot) => {
-            const allProjects = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, accountId: doc.ref.parent.parent?.id } as Project));
+            const newAllProjectData = new Map<string, ProjectData>();
+            const allProjects = snapshot.docs.map(docSnap => {
+              const data = docSnap.data() as ProjectData;
+              newAllProjectData.set(docSnap.id, data);
+              return { ...data, id: docSnap.id, accountId: activeAccount.id } as Project;
+            });
+            
+            allProjects.sort((a, b) => {
+                const dateA = a.lastModified ? (a.lastModified as any).seconds * 1000 : 0;
+                const dateB = b.lastModified ? (b.lastModified as any).seconds * 1000 : 0;
+                return dateB - dateA;
+            });
+            
             setProjects(allProjects);
+            setAllProjectData(newAllProjectData);
             setInitializing(false);
         },
         (error) => {
@@ -141,69 +192,107 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         }
     );
 
-    return () => {
-      unsubscribeAccounts();
-      unsubscribeProjects();
-    };
-  }, [toast, activeAccount]);
-
-
-  // Effect to handle active account change
-  React.useEffect(() => {
-    setActiveProject(null);
-    setActiveProjectData(null);
-    setActiveCalendar(null);
+    return () => unsubscribeProjects();
   }, [activeAccount]);
 
-  // Effect to fetch project data when active project changes
+  // Handle switching accounts and selecting initial projects
+  React.useEffect(() => {
+      if (activeAccount) {
+        localStorage.setItem(LAST_ACCOUNT_ID_KEY, activeAccount.id);
+        const firstProjectInAccount = projects.find(p => p.accountId === activeAccount.id);
+         if (!activeProject || activeProject.accountId !== activeAccount.id) {
+            setActiveProject(firstProjectInAccount || null);
+         }
+      } else {
+          localStorage.removeItem(LAST_ACCOUNT_ID_KEY);
+          setActiveProject(null);
+      }
+  }, [activeAccount, projects]);
+
+  // Derive active project data
   React.useEffect(() => {
     if (activeProject && activeAccount) {
-      setLoading(true);
-      setActiveProjectData(null);
-      setActiveCalendar(null);
-      const projectDocRef = doc(db, 'accounts', activeAccount.id, 'projects', activeProject.id);
-      
-      const unsubscribe = onSnapshot(projectDocRef, (doc) => {
-        if (doc.exists()) {
-          let data = doc.data() as ProjectData;
-          if (!data.calendars || data.calendars.length === 0) {
-            const newCalendar: Calendar = {
-              id: nanoid(),
-              name: 'Main Calendar',
-              startDate: '',
-              endDate: '',
-              calendarData: {},
-            };
-            data.calendars = [newCalendar];
-            data.activeCalendarId = newCalendar.id;
-          }
-          setActiveProjectData(data);
-          const calendarToActivate = data.calendars.find(c => c.id === data.activeCalendarId) || data.calendars[0];
-          setActiveCalendar(calendarToActivate);
-        } else {
-          // This can happen if project is deleted from another client
-          setActiveProject(null);
+      const data = allProjectData.get(activeProject.id);
+      if (data) {
+        let projectData = {...data};
+        if (!projectData.calendars) {
+          projectData.calendars = [];
         }
-        setLoading(false);
-      }, (error) => {
-        console.error('Error fetching project data:', error);
-        toast({ title: 'Error', description: 'Failed to load project data.', variant: 'destructive' });
-        setLoading(false);
-      });
-
-      return () => unsubscribe();
+        setActiveProjectData(projectData);
+        const calendarToActivate = projectData.calendars.find(c => c.id === projectData.activeCalendarId) || (projectData.calendars.length > 0 ? projectData.calendars[0] : null);
+        setActiveCalendar(calendarToActivate);
+      } else {
+         setActiveProjectData(null);
+         setActiveCalendar(null);
+      }
     } else {
       setActiveProjectData(null);
       setActiveCalendar(null);
     }
-  }, [activeProject, activeAccount, toast]);
+  }, [activeProject, activeAccount, allProjectData]);
+
+  const persistActiveProjectData = async (updatedData: ProjectData) => {
+    if (!activeProject || !activeAccount) return;
+    const projectRef = doc(db, 'accounts', activeAccount.id, 'projects', activeProject.id);
+    try {
+      await updateDoc(projectRef, {
+        ...updatedData,
+        lastModified: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Autosave error:', error);
+    }
+  };
+
+  const createTeammate = async (name: string) => {
+    if (!name.trim()) return;
+    setLoading(true);
+    try {
+        const docRef = await addDoc(teammatesCollectionRef, { name });
+        setActiveTeammate({id: docRef.id, name});
+        toast({ title: 'Success', description: `User profile "${name}" added.`});
+    } catch (error) {
+        console.error('Error creating user profile:', error);
+        toast({ title: 'Error', description: 'Failed to add profile.', variant: 'destructive' });
+    } finally {
+        setLoading(false);
+    }
+  }
+
+  const renameTeammate = async (id: string, name: string) => {
+    if (!name.trim()) return;
+    setLoading(true);
+    const teammateDoc = doc(db, 'teammates', id);
+    try {
+        await updateDoc(teammateDoc, { name });
+        toast({ title: 'Success', description: 'Name renamed.' });
+    } catch (error) {
+        console.error('Error renaming user:', error);
+        toast({ title: 'Error', description: 'Failed to rename profile.', variant: 'destructive' });
+    } finally {
+        setLoading(false);
+    }
+  }
+  
+  const deleteTeammate = async (id: string) => {
+    setLoading(true);
+    try {
+        await deleteDoc(doc(db, 'teammates', id));
+        toast({ title: 'Success', description: 'User profile deleted.' });
+    } catch (error) {
+        console.error('Error deleting profile:', error);
+        toast({ title: 'Error', description: 'Failed to delete profile.', variant: 'destructive' });
+    } finally {
+        setLoading(false);
+    }
+  };
 
   const createAccount = async (name: string) => {
     if (!name.trim()) return;
     setLoading(true);
     try {
         const docRef = await addDoc(accountsCollectionRef, { name });
-        // The snapshot listener will update the state
+        setActiveAccount({id: docRef.id, name});
         toast({ title: 'Success', description: `Account "${name}" created.`});
     } catch (error) {
         console.error('Error creating account:', error);
@@ -219,7 +308,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const accountDoc = doc(db, 'accounts', id);
     try {
         await updateDoc(accountDoc, { name });
-        // The snapshot listener will update the state
         toast({ title: 'Success', description: 'Account renamed.' });
     } catch (error) {
         console.error('Error renaming account:', error);
@@ -228,7 +316,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
     }
   }
-  
+
   const deleteAccount = async (id: string) => {
     setLoading(true);
     try {
@@ -246,7 +334,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         batch.delete(doc(db, 'accounts', id));
         await batch.commit();
 
-        toast({ title: 'Success', description: 'Account and all its projects deleted.' });
+        toast({ title: 'Success', description: 'Account deleted.' });
 
     } catch (error) {
         console.error('Error deleting account:', error);
@@ -261,21 +349,16 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (!name.trim()) return;
     setLoading(true);
     try {
-       const newCalendar: Calendar = {
-        id: nanoid(),
-        name: 'Main Calendar',
-        startDate: '',
-        endDate: '',
-        calendarData: {},
-      };
-      const initialData: ProjectData = {
+      const initialData: Omit<ProjectData, 'name' | 'lastModified'> & { name: string, lastModified: any } = {
         name,
-        calendars: [newCalendar],
-        activeCalendarId: newCalendar.id,
+        calendars: [],
+        activeCalendarId: null,
+        lastModified: serverTimestamp(),
       };
       const projectCollectionRef = collection(db, 'accounts', accountId, 'projects');
       const docRef = await addDoc(projectCollectionRef, initialData);
-      const newProject = { id: docRef.id, name, accountId };
+      
+      const newProject = { ...initialData, id: docRef.id, accountId, lastModified: new Date() } as Project;
       setActiveProject(newProject);
       toast({ title: 'Success', description: `Project "${name}" created.` });
     } catch (error) {
@@ -295,8 +378,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     const projectDoc = doc(db, 'accounts', accountId, 'projects', id);
     try {
-      await updateDoc(projectDoc, { name });
-      toast({ title: 'Success', description: 'Project updated.' });
+      await updateDoc(projectDoc, { name, lastModified: serverTimestamp() });
+      toast({ title: 'Success', description: 'Project renamed.' });
     } catch (error) {
       console.error('Error updating project:', error);
       toast({
@@ -325,7 +408,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       if (activeProject?.id === id) {
         setActiveProject(null);
       }
-      toast({ title: 'Success', description: 'Project and its logs deleted.' });
+      toast({ title: 'Success', description: 'Project deleted.' });
     } catch (error) {
       console.error('Error deleting project:', error);
       toast({
@@ -343,7 +426,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const newActiveCalendar = activeProjectData.calendars.find(c => c.id === calendarId);
     if (newActiveCalendar) {
       setActiveCalendar(newActiveCalendar);
-      setActiveProjectData(prev => prev ? { ...prev, activeCalendarId: calendarId } : null);
+      const updatedData = { ...activeProjectData, activeCalendarId: calendarId };
+      setActiveProjectData(updatedData);
+      persistActiveProjectData(updatedData);
     }
   };
 
@@ -357,9 +442,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       calendarData: {},
     };
     const updatedCalendars = [...activeProjectData.calendars, newCalendar];
-    setActiveProjectData(prev => prev ? { ...prev, calendars: updatedCalendars, activeCalendarId: newCalendar.id } : null);
+    const updatedData = { ...activeProjectData, calendars: updatedCalendars, activeCalendarId: newCalendar.id };
+    setActiveProjectData(updatedData);
     setActiveCalendar(newCalendar);
-    toast({ title: 'Calendar Created', description: `"${name}" has been added. Save project to persist.` });
+    persistActiveProjectData(updatedData);
+    toast({ title: 'Success', description: 'Calendar added.' });
   };
 
   const renameCalendar = (calendarId: string, newName: string) => {
@@ -367,46 +454,62 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const updatedCalendars = activeProjectData.calendars.map(c => 
       c.id === calendarId ? { ...c, name: newName } : c
     );
-    setActiveProjectData(prev => prev ? { ...prev, calendars: updatedCalendars } : null);
+    const updatedData = { ...activeProjectData, calendars: updatedCalendars };
+    setActiveProjectData(updatedData);
     if(activeCalendar?.id === calendarId) {
       setActiveCalendar(prev => prev ? {...prev, name: newName} : null);
     }
-    toast({ title: 'Calendar Renamed', description: 'Save project to persist changes.' });
+    persistActiveProjectData(updatedData);
+    toast({ title: 'Success', description: 'Calendar renamed.' });
   }
 
   const deleteCalendar = (calendarId: string) => {
-    if (!activeProjectData || activeProjectData.calendars.length <= 1) {
-      toast({ title: 'Cannot Delete', description: 'A project must have at least one calendar.', variant: 'destructive'});
-      return;
-    }
+    if (!activeProjectData) return;
 
     const updatedCalendars = activeProjectData.calendars.filter(c => c.id !== calendarId);
-    const newActiveCalendarId = activeProjectData.activeCalendarId === calendarId ? updatedCalendars[0].id : activeProjectData.activeCalendarId;
     
-    setActiveProjectData(prev => prev ? { ...prev, calendars: updatedCalendars, activeCalendarId: newActiveCalendarId } : null);
+    let newActiveCalendarId = activeProjectData.activeCalendarId;
+    if (activeProjectData.activeCalendarId === calendarId) {
+      newActiveCalendarId = updatedCalendars.length > 0 ? updatedCalendars[0].id : null;
+    }
+    
+    const updatedData = { ...activeProjectData, calendars: updatedCalendars, activeCalendarId: newActiveCalendarId };
+    setActiveProjectData(updatedData);
     setActiveCalendar(updatedCalendars.find(c => c.id === newActiveCalendarId) || null);
-    toast({ title: 'Calendar Deleted', description: 'Save project to persist changes.' });
+    persistActiveProjectData(updatedData);
+    toast({ title: 'Success', description: 'Calendar deleted.' });
   }
 
   const updateActiveCalendar = (data: Partial<Calendar>) => {
+    if (!activeProjectData || !activeCalendar) return;
+    const updatedCalendars = activeProjectData.calendars.map(c => 
+      c.id === activeCalendar.id ? { ...c, ...data } : c
+    );
+    const updatedData = { ...activeProjectData, calendars: updatedCalendars };
     setActiveCalendar(prev => (prev ? { ...prev, ...data } : null));
-    setActiveProjectData(prevData => {
-      if (!prevData || !activeCalendar) return null;
-      const updatedCalendars = prevData.calendars.map(c => 
-        c.id === activeCalendar.id ? { ...c, ...data } : c
-      );
-      return { ...prevData, calendars: updatedCalendars };
-    });
+    setActiveProjectData(updatedData);
+    persistActiveProjectData(updatedData);
   };
 
-  const updatePost = (date: string, post: Post) => {
-    if (!activeCalendar) return;
+  const updatePost = (date: string, post: Post, isNew: boolean) => {
+    if (!activeCalendar || !activeProjectData) return;
+
+    if (isNew) {
+        addChangeLogEntry(`Added "${post.title}" on ${format(new Date(date), 'MM/dd')}`);
+    } else {
+        addChangeLogEntry(`Updated "${post.title}"`);
+    }
+
     const newCalendarData = { ...activeCalendar.calendarData, [date]: post };
     updateActiveCalendar({ calendarData: newCalendarData });
   };
 
   const deletePost = (date: string) => {
     if (!activeCalendar) return;
+    const postToDelete = activeCalendar.calendarData[date];
+    if (postToDelete) {
+        addChangeLogEntry(`Deleted "${postToDelete.title}"`);
+    }
     const newCalendarData = { ...activeCalendar.calendarData };
     delete newCalendarData[date];
     updateActiveCalendar({ calendarData: newCalendarData });
@@ -419,6 +522,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const destinationPost = newCalendarData[destinationDate];
 
     if (!sourcePost) return; 
+
+    addChangeLogEntry(`Moved "${sourcePost.title}" to ${format(new Date(destinationDate), 'MM/dd')}`);
     
     delete newCalendarData[sourceDate];
     newCalendarData[destinationDate] = sourcePost;
@@ -430,47 +535,41 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   };
 
   const saveProjectToDb = async () => {
-    if (!activeProject || !activeProjectData || !activeCalendar || !activeAccount) return;
+    if (!activeProject || !activeProjectData || !activeAccount || !activeTeammate) {
+        toast({ title: "Error", description: "Pick account and user.", variant: "destructive"});
+        return;
+    }
     setLoading(true);
+    
+    const { lastModified, ...dataToSave } = activeProjectData;
+
     try {
-      const projectRef = doc(db, 'accounts', activeAccount.id, 'projects', activeProject.id);
-      
-      const batch = writeBatch(db);
-      // We must set the entire project data, not just parts of it
-      batch.set(projectRef, activeProjectData);
-      
-      const logsCollectionRef = collection(db, 'accounts', activeAccount.id, 'projects', activeProject.id, 'logs');
-      const ip = 'Unknown'; // Can't get IP on client side easily
-      const logEntry = {
-        timestamp: new Date(),
-        ipAddress: ip,
-        changeDescription: `Project "${activeProjectData.name}" (Calendar: ${activeCalendar.name}) was saved.`,
-      };
-      batch.set(doc(logsCollectionRef), logEntry);
-      
-      await batch.commit();
+      const result = await saveProjectAndLog(activeAccount.id, activeProject.id, dataToSave, changeLog, activeTeammate.name);
 
-      toast({ title: 'Project Saved!', description: 'Your changes have been saved to the cloud.' });
-
+      if (result.success) {
+        setChangeLog([]);
+        toast({ title: 'Success', description: 'Project saved to history.' });
+      } else {
+        toast({ title: 'Error', description: result.message, variant: 'destructive' });
+      }
     } catch (error) {
-      console.error('Error saving project:', error);
+      console.error('Save error:', error);
       toast({
         title: 'Error',
-        description: (error as Error).message || 'Failed to save project.',
+        description: 'Failed to save.',
         variant: 'destructive',
       });
     } finally {
       setLoading(false);
     }
   };
-  
+
   const importCalendarData = (data: Partial<Calendar>) => {
     if (!activeCalendar) {
-        toast({ title: 'Error', description: 'No active calendar to import data into.', variant: 'destructive' });
+        toast({ title: 'Error', description: 'Pick a calendar first.', variant: 'destructive' });
         return;
     }
     const calendarData = data.calendarData || {};
-    // Sanitize imported data to make sure it includes the status field
     for (const key in calendarData) {
         const post = calendarData[key];
         if (!post.status) {
@@ -484,20 +583,86 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       endDate: data.endDate,
       calendarData: calendarData,
     });
-    toast({ title: 'Import Successful', description: 'Data has been loaded. Click "Save" to persist changes.' });
+    toast({ title: 'Success', description: 'Data imported.' });
   }
+
+  const getProjectById = (projectId: string) => {
+    return projects.find(p => p.id === projectId);
+  }
+
+  const updatePostInProject = (projectId: string, calendarId: string, date: string, postData: Partial<Post>) => {
+    const project = getProjectById(projectId);
+    if (!project || !project.accountId) return;
+
+    const projectRef = doc(db, 'accounts', project.accountId, 'projects', projectId);
+    
+    const projectData = allProjectData.get(projectId);
+    if (!projectData) return;
+
+    const calendar = projectData.calendars.find(c => c.id === calendarId);
+    if (!calendar) return;
+
+    const post = calendar.calendarData[date];
+    if (!post) return;
+    
+    calendar.calendarData[date] = { ...post, ...postData };
+    
+    const updatedCalendars = projectData.calendars.map(c => c.id === calendarId ? calendar : c);
+    
+    updateDoc(projectRef, { calendars: updatedCalendars, lastModified: serverTimestamp() });
+  };
+
+  const movePostInProject = (projectId: string, calendarId: string, sourceDate: string, destinationDate: string) => {
+    const project = getProjectById(projectId);
+    if (!project || !project.accountId) return;
+      
+    const projectRef = doc(db, 'accounts', project.accountId, 'projects', projectId);
+
+    const projectData = allProjectData.get(projectId);
+    if (!projectData) return;
+            
+    const calendar = projectData.calendars.find(c => c.id === calendarId);
+    if (!calendar) return;
+
+    const postToMove = calendar.calendarData[sourceDate];
+    if (!postToMove) return;
+
+    if (postToMove.missedReason) {
+      delete postToMove.missedReason;
+    }
+    postToMove.status = 'Planned';
+
+    if(calendar.calendarData[destinationDate]) {
+        toast({ title: 'Error', description: 'Date is taken.', variant: 'destructive'});
+        return;
+    }
+
+    delete calendar.calendarData[sourceDate];
+    calendar.calendarData[destinationDate] = postToMove;
+
+    const updatedCalendars = projectData.calendars.map(c => c.id === calendarId ? calendar : c);
+
+    updateDoc(projectRef, { calendars: updatedCalendars, lastModified: serverTimestamp() });
+  };
 
   const value = {
     initializing,
     loading,
+    teammates,
+    activeTeammate,
     accounts,
     activeAccount,
     projects,
+    allProjectData,
     activeProject,
     activeProjectData,
     activeCalendar,
     filters,
     setFilters,
+    createTeammate,
+    renameTeammate,
+    deleteTeammate,
+    setActiveTeammate,
     createAccount,
     renameAccount,
     deleteAccount,
@@ -516,6 +681,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     movePost,
     saveProjectToDb,
     importCalendarData,
+    updatePostInProject,
+    movePostInProject,
+    getProjectById,
   };
 
   return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;

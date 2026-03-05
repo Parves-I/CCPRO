@@ -147,7 +147,7 @@ export function CalendarControls() {
                 </Popover>
              </div>
              <div>
-                <Button variant="outline" onClick={() => setCreateOpen(true)} title="Create New Calendar">
+                <Button variant="outline" onClick={() => setCreateOpen(true)} title="Add Calendar">
                     <Plus className="h-4 w-4" />
                     <span className="sr-only sm:not-sr-only sm:ml-2">New Calendar</span>
                 </Button>
@@ -156,7 +156,7 @@ export function CalendarControls() {
 
         <div className="flex items-center gap-2 self-start sm:self-center">
             <input type="file" ref={fileInputRef} className='hidden' accept=".ccpro" onChange={handleFileImport} />
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()} title="Import from .ccpro file" disabled={!activeCalendar}>
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()} title="Import file" disabled={!activeCalendar}>
                 <Upload className="h-4 w-4" />
                 <span className="sr-only sm:not-sr-only sm:ml-2">Import</span>
             </Button>
@@ -171,20 +171,20 @@ export function CalendarControls() {
                 <DropdownMenuContent>
                     <DropdownMenuItem onSelect={handlePdfExport} disabled={!activeCalendar}>
                         <FileText className="mr-2 h-4 w-4" />
-                        Export as PDF
+                        Export PDF
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => activeCalendar && exportToExcel(activeCalendar)} disabled={!activeCalendar}>
                         <FileSpreadsheet className="mr-2 h-4 w-4" />
-                        Export as Excel
+                        Export Excel
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => activeCalendar && exportToFile(activeCalendar)} disabled={!activeCalendar}>
                         <FileDown className="mr-2 h-4 w-4" />
-                        Export as .ccpro
+                        Export .ccpro
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button onClick={saveProjectToDb} disabled={loading || !activeCalendar} title="Save project to cloud">
+            <Button onClick={saveProjectToDb} disabled={loading || !activeCalendar} title="Save project">
                 {loading ? <Loader2 className='h-4 w-4 animate-spin' /> : <Save className="h-4 w-4" />}
                 <span className="sr-only sm:not-sr-only sm:ml-2">Save</span>
             </Button>
@@ -193,10 +193,10 @@ export function CalendarControls() {
       <Dialog open={isCreateOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Create New Calendar</DialogTitle>
+                <DialogTitle>New Calendar</DialogTitle>
             </DialogHeader>
             <div>
-                <Label htmlFor='new-calendar-name'>Calendar Name</Label>
+                <Label htmlFor='new-calendar-name'>Name</Label>
                 <Input id='new-calendar-name' value={newCalendarName} onChange={(e) => setNewCalendarName(e.target.value)} placeholder="e.g., Q4 Marketing"/>
             </div>
             <DialogFooter>

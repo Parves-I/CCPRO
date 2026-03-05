@@ -1,18 +1,17 @@
 'use server';
 
 import { headers } from 'next/headers';
-import { doc, setDoc, addDoc, collection, writeBatch } from 'firebase/firestore';
+import { doc, writeBatch, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { ProjectData } from '@/lib/types';
 
-// This function is kept for potential future use but is currently not used
-// as saving logic has been moved to the client-side context for simplicity
-// in the new account-based structure.
+
 export async function saveProjectAndLog(
   accountId: string, 
   projectId: string, 
-  projectData: ProjectData, 
-  calendarName: string
+  projectData: Omit<ProjectData, 'lastModified'>, 
+  changeLog: string[],
+  teammateName: string
 ) {
   const ip = headers().get('x-forwarded-for') || 'Unknown';
   
@@ -22,23 +21,34 @@ export async function saveProjectAndLog(
   try {
     const batch = writeBatch(db);
     
-    // 1. Save the project data
-    batch.set(projectDocRef, projectData);
+    // 1. Save the project data with a server timestamp
+    const projectDataToSave = {
+        ...projectData,
+        lastModified: serverTimestamp()
+    };
+    batch.set(projectDocRef, projectDataToSave, { merge: true });
 
-    // 2. Create a log entry
-    const logDocRef = doc(logsCollectionRef); // Create a new doc ref for the log
-    batch.set(logDocRef, {
-      timestamp: new Date(),
+    // 2. Create a single log entry for this "Save" action containing the snapshot
+    const description = changeLog.length > 0 
+      ? changeLog.join(', ') 
+      : `Saved by ${teammateName}.`;
+
+    const logEntry = {
+      timestamp: serverTimestamp(),
       ipAddress: ip,
-      changeDescription: `Project "${projectData.name}" (Calendar: ${calendarName}) was saved.`,
-    });
+      changeDescription: description,
+      snapshot: projectData, // Store the full state for restoration
+      author: teammateName
+    };
+    
+    batch.set(doc(logsCollectionRef), logEntry);
     
     await batch.commit();
 
-    return { success: true, message: 'Project saved successfully!' };
+    return { success: true, message: 'Saved successfully!' };
   } catch (error) {
-    console.error('Error saving project and creating log:', error);
+    console.error('Error saving project:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-    return { success: false, message: `Failed to save project: ${errorMessage}` };
+    return { success: false, message: `Save failed: ${errorMessage}` };
   }
 }

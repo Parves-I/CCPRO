@@ -27,11 +27,30 @@ const platformIconMap: Record<string, React.FC<React.SVGProps<SVGSVGElement>>> =
 };
 
 const statusColorMap: Record<PostStatus, string> = {
+    Planned: 'bg-gray-200/50',
+    Edited: 'bg-purple-200/50',
+    Approved: 'bg-yellow-200/50',
+    Scheduled: 'bg-blue-200/50',
+    Posted: 'bg-green-200/50',
+    Missed: 'bg-red-200/50',
+};
+
+const statusTextColorMap: Record<PostStatus, string> = {
+    Planned: 'text-gray-800',
+    Edited: 'text-purple-800',
+    Approved: 'text-yellow-800',
+    Scheduled: 'text-blue-800',
+    Posted: 'text-green-800',
+    Missed: 'text-red-800',
+};
+
+const statusBadgeColorMap: Record<PostStatus, string> = {
     Planned: 'bg-gray-400',
-    'On Approval': 'bg-yellow-500',
+    Edited: 'bg-purple-500',
+    Approved: 'bg-yellow-500',
     Scheduled: 'bg-blue-500',
     Posted: 'bg-green-500',
-    Edited: 'bg-purple-500'
+    Missed: 'bg-red-500',
 };
 
 
@@ -99,9 +118,10 @@ export function CalendarDay({ day, post, isCurrentMonth, isFilteredOut }: Calend
         onDrop={handleDrop}
         onClick={handleClick}
         className={cn(
-          'relative calendar-day bg-card border p-2 flex flex-col cursor-pointer transition-all duration-300 ease-in-out rounded-lg min-h-[150px] shadow-sm',
+          'relative calendar-day border p-2 flex flex-col cursor-pointer transition-all duration-300 ease-in-out rounded-lg min-h-[150px] shadow-sm',
           !isCurrentMonth && 'bg-muted/50 opacity-60 pointer-events-none',
           post && !isFilteredOut ? 'hover:shadow-lg hover:-translate-y-1' : 'hover:bg-accent',
+          post ? statusColorMap[post.status] : 'bg-card',
           isDragging && 'opacity-40 ring-2 ring-primary ring-offset-2 scale-95',
           isDragOver && 'ring-2 ring-primary bg-primary/10',
           isFilteredOut && 'opacity-50 bg-muted/30'
@@ -113,11 +133,16 @@ export function CalendarDay({ day, post, isCurrentMonth, isFilteredOut }: Calend
         <div className="flex justify-between items-start">
             {post?.status && (
                 <div className='flex items-center gap-1.5'>
-                    <div className={cn("w-2.5 h-2.5 rounded-full", statusColorMap[post.status])} />
+                    <div className={cn("w-2.5 h-2.5 rounded-full", statusBadgeColorMap[post.status])} />
                     <span className='text-xs text-muted-foreground font-medium'>{post.status}</span>
                 </div>
             )}
-            <div className="font-bold text-gray-700 text-right text-sm ml-auto">{format(day, 'd')}</div>
+            <div className={cn(
+              "font-bold text-right text-sm ml-auto",
+              post ? statusTextColorMap[post.status] : 'text-gray-700'
+            )}>
+              {format(day, 'd')}
+            </div>
         </div>
 
         <div className="day-content flex-grow flex flex-col justify-between mt-1 text-xs">
@@ -129,7 +154,12 @@ export function CalendarDay({ day, post, isCurrentMonth, isFilteredOut }: Calend
                                 <Badge key={type} variant="secondary" className="text-xs">{type}</Badge>
                            ))}
                         </div>
-                        <p className="font-semibold text-sm text-foreground break-words leading-tight">{post.title}</p>
+                        <p className={cn(
+                          "font-semibold text-sm break-words leading-tight",
+                           post ? statusTextColorMap[post.status] : 'text-foreground'
+                        )}>
+                            {post.title}
+                        </p>
                     </div>
                     <div className="flex items-center justify-end mt-auto pt-2 -space-x-2 flex-wrap">
                         {post.platforms.map((platform, index) => (

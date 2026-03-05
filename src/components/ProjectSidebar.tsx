@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useProject } from '@/context/ProjectContext';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, MoreHorizontal, Edit, Trash2, Loader2, Search, History } from 'lucide-react';
+import { Plus, MoreHorizontal, Edit, Trash2, Loader2, Search, History, Settings } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -33,17 +33,24 @@ import {
 import { cn } from '@/lib/utils';
 import { SidebarFooter, SidebarSeparator } from './ui/sidebar';
 import { ChangeHistoryModal } from './ChangeHistoryModal';
+import { SettingsModal } from './SettingsModal';
 import type { Project } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
 
 export function ProjectSidebar() {
   const { projects, activeProject, setActiveProject, createProject, updateProject, deleteProject, loading, activeAccount } = useProject();
   const [isCreateOpen, setCreateOpen] = React.useState(false);
   const [isHistoryOpen, setHistoryOpen] = React.useState(false);
+  const [isSettingsOpen, setSettingsOpen] = React.useState(false);
   const [newProjectName, setNewProjectName] = React.useState('');
   const [searchTerm, setSearchTerm] = React.useState('');
+  const { toast } = useToast();
 
   const handleCreateProject = async () => {
-    if (!activeAccount) return;
+    if (!activeAccount) {
+        toast({title: 'Pick Account', description: 'Choose an account first.', variant: 'destructive'});
+        return;
+    };
     await createProject(newProjectName, activeAccount.id);
     setNewProjectName('');
     setCreateOpen(false);
@@ -68,10 +75,10 @@ export function ProjectSidebar() {
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create New Project</DialogTitle>
+            <DialogTitle>Add Project</DialogTitle>
           </DialogHeader>
           <Input
-            placeholder="Project Name..."
+            placeholder="Name..."
             value={newProjectName}
             onChange={(e) => setNewProjectName(e.target.value)}
           />
@@ -79,7 +86,7 @@ export function ProjectSidebar() {
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancel</Button>
             <Button onClick={handleCreateProject} disabled={loading || !newProjectName.trim()}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create
+              Add
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -88,7 +95,7 @@ export function ProjectSidebar() {
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Search projects..."
+            placeholder="Find project..."
             className="pl-8"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
@@ -113,15 +120,20 @@ export function ProjectSidebar() {
       </ScrollArea>
       <SidebarFooter>
         <SidebarSeparator />
-        <div className='p-2'>
+        <div className='p-2 space-y-1'>
             <Button variant="ghost" className="w-full justify-start" onClick={() => setHistoryOpen(true)} disabled={!activeProject}>
                 <History className="mr-2 h-4 w-4" />
-                Change History
+                History
+            </Button>
+            <Button variant="ghost" className="w-full justify-start" onClick={() => setSettingsOpen(true)}>
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
             </Button>
         </div>
       </SidebarFooter>
     </div>
     <ChangeHistoryModal isOpen={isHistoryOpen} onClose={() => setHistoryOpen(false)} />
+    <SettingsModal isOpen={isSettingsOpen} onClose={() => setSettingsOpen(false)} />
     </>
   );
 }
@@ -186,10 +198,9 @@ function ProjectItem({ project, isActive, onSelect, onUpdate, onDelete, isLoadin
       <AlertDialog open={isDeleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent onClick={(e) => e.stopPropagation()}>
             <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete your project
-                and remove your data from our servers.
+                This will delete the project and all data.
             </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
