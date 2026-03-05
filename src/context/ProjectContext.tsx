@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -66,7 +65,6 @@ interface ProjectContextType {
   deletePost: (date: string) => void;
   movePost: (sourceDate: string, destinationDate: string) => void;
   saveProjectToDb: () => Promise<void>;
-  restoreVersion: (snapshot: ProjectData) => Promise<void>;
   importCalendarData: (data: Partial<Calendar>) => void;
   updatePostInProject: (projectId: string, calendarId: string, date: string, postData: Partial<Post>) => void;
   movePostInProject: (projectId: string, calendarId: string, sourceDate: string, destinationDate: string) => void;
@@ -543,7 +541,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
     setLoading(true);
     
-    // We snapshot everything including calendars and data
     const { lastModified, ...dataToSave } = activeProjectData;
 
     try {
@@ -567,27 +564,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const restoreVersion = async (snapshot: ProjectData) => {
-    if (!activeProject || !activeAccount) return;
-    setLoading(true);
-    try {
-      const projectRef = doc(db, 'accounts', activeAccount.id, 'projects', activeProject.id);
-      
-      // Overwrite the project with the snapshot
-      await updateDoc(projectRef, {
-        ...snapshot,
-        lastModified: serverTimestamp()
-      });
-      
-      toast({ title: 'Success', description: 'Project restored to selected version.' });
-    } catch (error) {
-      console.error('Restore error:', error);
-      toast({ title: 'Error', description: 'Failed to restore version.', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  }
-  
   const importCalendarData = (data: Partial<Calendar>) => {
     if (!activeCalendar) {
         toast({ title: 'Error', description: 'Pick a calendar first.', variant: 'destructive' });
@@ -704,7 +680,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     deletePost,
     movePost,
     saveProjectToDb,
-    restoreVersion,
     importCalendarData,
     updatePostInProject,
     movePostInProject,
