@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -13,7 +14,6 @@ import {
   writeBatch,
   query,
   onSnapshot,
-  collectionGroup,
   serverTimestamp,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -116,16 +116,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Handle teammates and accounts
   React.useEffect(() => {
-    setInitializing(true);
     const lastUsedTeammateId = localStorage.getItem(LAST_TEAMMATE_ID_KEY);
     const lastUsedAccountId = localStorage.getItem(LAST_ACCOUNT_ID_KEY);
 
-    const unsubscribeTeammates = onSnapshot(teammatesCollectionRef, 
-      (snapshot) => {
+    const unsubscribeTeammates = onSnapshot(teammatesCollectionRef, (snapshot) => {
         const fetchedTeammates = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Teammate));
         setTeammates(fetchedTeammates);
-        
         if (fetchedTeammates.length > 0) {
             const teammateToSet = lastUsedTeammateId 
                 ? (fetchedTeammates.find(a => a.id === lastUsedTeammateId) || null)
@@ -136,15 +134,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         } else {
             setActiveTeammate(null);
         }
-      },
-      (error) => console.error("Error fetching teammates:", error)
-    );
+    });
 
-    const unsubscribeAccounts = onSnapshot(accountsCollectionRef, 
-      (snapshot) => {
+    const unsubscribeAccounts = onSnapshot(accountsCollectionRef, (snapshot) => {
         const fetchedAccounts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Account));
         setAccounts(fetchedAccounts);
-        
         if (fetchedAccounts.length > 0) {
             const accountToSet = lastUsedAccountId 
                 ? (fetchedAccounts.find(a => a.id === lastUsedAccountId) || fetchedAccounts[0])
@@ -155,21 +149,32 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         } else if (activeAccount) {
             setActiveAccount(null);
         }
-      }, 
-      (error) => {
-        console.error("Error fetching accounts:", error);
-        toast({ title: "Error", description: "Could not load accounts.", variant: "destructive" });
-      }
-    );
-    
-    const projectsQuery = query(collectionGroup(db, 'projects'));
-    const unsubscribeProjects = onSnapshot(projectsQuery, 
+    });
+
+    return () => {
+      unsubscribeTeammates();
+      unsubscribeAccounts();
+    };
+  }, []);
+
+  // Handle project syncing based on activeAccount
+  React.useEffect(() => {
+    if (!activeAccount) {
+        setProjects([]);
+        setAllProjectData(new Map());
+        setInitializing(false);
+        return;
+    }
+
+    setInitializing(true);
+    const projectsRef = collection(db, 'accounts', activeAccount.id, 'projects');
+    const unsubscribeProjects = onSnapshot(projectsRef, 
         (snapshot) => {
             const newAllProjectData = new Map<string, ProjectData>();
             const allProjects = snapshot.docs.map(docSnap => {
               const data = docSnap.data() as ProjectData;
               newAllProjectData.set(docSnap.id, data);
-              return { ...data, id: docSnap.id, accountId: docSnap.ref.parent.parent?.id } as Project;
+              return { ...data, id: docSnap.id, accountId: activeAccount.id } as Project;
             });
             
             allProjects.sort((a, b) => {
@@ -189,13 +194,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         }
     );
 
-    return () => {
-      unsubscribeTeammates();
-      unsubscribeAccounts();
-      unsubscribeProjects();
-    };
-  }, []);
+    return () => unsubscribeProjects();
+  }, [activeAccount]);
 
+  // Handle switching accounts and selecting initial projects
   React.useEffect(() => {
       if (activeAccount) {
         localStorage.setItem(LAST_ACCOUNT_ID_KEY, activeAccount.id);
@@ -209,11 +211,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       }
   }, [activeAccount, projects]);
 
+  // Derive active project data
   React.useEffect(() => {
     if (activeProject && activeAccount) {
-      setLoading(true);
       const data = allProjectData.get(activeProject.id);
-
       if (data) {
         let projectData = {...data};
         if (!projectData.calendars) {
@@ -226,7 +227,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
          setActiveProjectData(null);
          setActiveCalendar(null);
       }
-      setLoading(false);
     } else {
       setActiveProjectData(null);
       setActiveCalendar(null);
@@ -543,6 +543,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
     setLoading(true);
     
+    // We snapshot everything including calendars and data
     const { lastModified, ...dataToSave } = activeProjectData;
 
     try {
@@ -571,11 +572,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const projectRef = doc(db, 'accounts', activeAccount.id, 'projects', activeProject.id);
+      
+      // Overwrite the project with the snapshot
       await updateDoc(projectRef, {
         ...snapshot,
         lastModified: serverTimestamp()
       });
-      toast({ title: 'Success', description: 'Project restored.' });
+      
+      toast({ title: 'Success', description: 'Project restored to selected version.' });
     } catch (error) {
       console.error('Restore error:', error);
       toast({ title: 'Error', description: 'Failed to restore version.', variant: 'destructive' });

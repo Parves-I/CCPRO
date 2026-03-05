@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -52,11 +53,14 @@ export function ChangeHistoryModal({ isOpen, onClose }: ChangeHistoryModalProps)
     const [loading, setLoading] = React.useState(true);
     const [restoringLog, setRestoringLog] = React.useState<Log | null>(null);
 
+    // Fetch logs specifically for the active project
     React.useEffect(() => {
+        // Clear logs if project changes or modal closes
         if (!isOpen || !activeProject || !activeAccount) {
-            if(!isOpen) setLogs([]);
+            setLogs([]);
+            setLoading(false);
             return;
-        };
+        }
 
         setLoading(true);
         const logsRef = collection(db, 'accounts', activeAccount.id, 'projects', activeProject.id, 'logs');
@@ -72,7 +76,7 @@ export function ChangeHistoryModal({ isOpen, onClose }: ChangeHistoryModalProps)
         });
 
         return () => unsubscribe();
-    }, [activeAccount, activeProject, isOpen]);
+    }, [activeAccount, activeProject?.id, isOpen]); // Use activeProject.id to ensure strict isolation
 
     const handleRestore = async () => {
         if (!restoringLog) return;
@@ -117,7 +121,7 @@ export function ChangeHistoryModal({ isOpen, onClose }: ChangeHistoryModalProps)
                                                 <div>
                                                     <p className="text-md font-medium">{log.changeDescription}</p>
                                                     <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
-                                                        <span>{format(new Date(log.timestamp.seconds * 1000), "PPP p")}</span>
+                                                        <span>{log.timestamp ? format(new Date(log.timestamp.seconds * 1000), "PPP p") : 'Recently'}</span>
                                                         <span>&bull;</span>
                                                         <span>{log.author || 'User'}</span>
                                                         <span>&bull;</span>
@@ -141,7 +145,7 @@ export function ChangeHistoryModal({ isOpen, onClose }: ChangeHistoryModalProps)
                                         <History className="mx-auto h-12 w-12 text-muted-foreground/30" strokeWidth="1" />
                                         <h3 className="mt-4 text-lg font-medium text-foreground">No History</h3>
                                         <p className="mt-1 text-sm text-muted-foreground">
-                                            Save the project to see your version history here.
+                                            Save the project to see its version history here.
                                         </p>
                                     </div>
                                 )}
@@ -159,7 +163,7 @@ export function ChangeHistoryModal({ isOpen, onClose }: ChangeHistoryModalProps)
                     <AlertDialogHeader>
                         <AlertDialogTitle>Restore this version?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will overwrite your current project data with the version from {restoringLog && format(new Date(restoringLog.timestamp.seconds * 1000), "PPP p")}. This cannot be undone.
+                            This will overwrite your current project data with the version from {restoringLog?.timestamp ? format(new Date(restoringLog.timestamp.seconds * 1000), "PPP p") : 'selected date'}. This cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
