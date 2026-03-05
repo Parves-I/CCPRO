@@ -52,10 +52,14 @@ export default function Home() {
   const lastSavedText = React.useMemo(() => {
     if (!activeProject?.lastModified) return null;
     let date: Date;
+    // Check if it's a Firestore Timestamp or a Date object
     if (activeProject.lastModified instanceof Date) {
       date = activeProject.lastModified;
-    } else {
+    } else if (activeProject.lastModified && 'seconds' in activeProject.lastModified) {
       date = new Date(activeProject.lastModified.seconds * 1000);
+    } else {
+        // Fallback for draft/local state
+        date = new Date();
     }
     return `Last autosaved: ${format(date, 'MMM d, h:mm:ss a')}`;
   }, [activeProject?.lastModified]);
@@ -166,7 +170,7 @@ export default function Home() {
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                     />
                   </svg>
                 </div>
@@ -239,7 +243,7 @@ export default function Home() {
           )}
         </main>
         
-        {/* Autosave Indicator */}
+        {/* Dynamic Autosave Indicator */}
         {activeProject && lastSavedText && (
           <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 bg-background/80 backdrop-blur-sm border px-3 py-1.5 rounded-full shadow-sm text-xs text-muted-foreground transition-all duration-300">
             <CheckCircle2 className="h-3 w-3 text-green-500" />
