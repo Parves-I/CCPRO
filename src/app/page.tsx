@@ -1,8 +1,7 @@
-
 'use client';
 
 import * as React from 'react';
-import { CalendarIcon, Loader2, Bell, Users } from 'lucide-react';
+import { CalendarIcon, Loader2, Bell, Users, Plus } from 'lucide-react';
 import {
   Sidebar,
   SidebarHeader,
@@ -22,10 +21,32 @@ import { CalendarSelector } from '@/components/CalendarSelector';
 import { TeammateSelector } from '@/components/TeammateSelector';
 import { RemindersModal } from '@/components/RemindersModal';
 import { AccountSelector } from '@/components/AccountSelector';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export default function Home() {
-  const { loading, activeProject, activeCalendar, initializing, teammates, activeTeammate, activeAccount } = useProject();
+  const { 
+    loading, 
+    activeProject, 
+    activeCalendar, 
+    initializing, 
+    teammates, 
+    activeTeammate, 
+    activeAccount, 
+    activeProjectData,
+    createCalendar
+  } = useProject();
   const [isRemindersOpen, setRemindersOpen] = React.useState(false);
+  const [isCreateCalendarOpen, setCreateCalendarOpen] = React.useState(false);
+  const [newCalendarName, setNewCalendarName] = React.useState('');
+
+  const handleCreateCalendar = () => {
+    if(!newCalendarName.trim()) return;
+    createCalendar(newCalendarName.trim());
+    setNewCalendarName('');
+    setCreateCalendarOpen(false);
+  }
 
   return (
     <SidebarProvider>
@@ -151,7 +172,9 @@ export default function Home() {
                       <SidebarTrigger />
                    </div>
                   <h1 className="text-3xl font-bold text-foreground">{activeProject.name}</h1>
-                  <CalendarSelector />
+                  {activeProjectData?.calendars && activeProjectData.calendars.length > 0 && (
+                    <CalendarSelector />
+                  )}
                 </div>
                 <div className="flex items-center gap-4">
                   {loading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
@@ -162,30 +185,74 @@ export default function Home() {
                   <AccountSelector />
                 </div>
               </header>
-              <Card className="p-4 mb-6 shadow-sm">
-                <CalendarControls />
-                <FilterControls />
-              </Card>
-              <div className='flex flex-col flex-grow min-h-0'>
-                <Card id="calendar-grid-scroll-area" className="flex-grow p-4 sm:p-6 shadow-sm overflow-auto">
-                  {activeCalendar && activeCalendar.startDate && activeCalendar.endDate ? (
-                    <CalendarGrid />
-                  ) : (
-                    <div className="text-center py-20 h-full flex flex-col items-center justify-center">
-                      <CalendarIcon className="mx-auto h-16 w-16 text-muted-foreground/30" strokeWidth="1" />
-                      <h3 className="mt-4 text-xl font-medium text-foreground">Your Calendar Awaits</h3>
-                      <p className="mt-1 text-md text-muted-foreground">
-                        Select a start and end date to begin planning your content.
-                      </p>
-                    </div>
-                  )}
-                </Card>
-              </div>
+
+              {activeProjectData?.calendars && activeProjectData.calendars.length > 0 ? (
+                <>
+                  <Card className="p-4 mb-6 shadow-sm">
+                    <CalendarControls />
+                    <FilterControls />
+                  </Card>
+                  <div className='flex flex-col flex-grow min-h-0'>
+                    <Card id="calendar-grid-scroll-area" className="flex-grow p-4 sm:p-6 shadow-sm overflow-auto">
+                      {activeCalendar && activeCalendar.startDate && activeCalendar.endDate ? (
+                        <CalendarGrid />
+                      ) : (
+                        <div className="text-center py-20 h-full flex flex-col items-center justify-center">
+                          <CalendarIcon className="mx-auto h-16 w-16 text-muted-foreground/30" strokeWidth="1" />
+                          <h3 className="mt-4 text-xl font-medium text-foreground">Your Calendar Awaits</h3>
+                          <p className="mt-1 text-md text-muted-foreground">
+                            Select a start and end date in the controls above to begin planning your content.
+                          </p>
+                        </div>
+                      )}
+                    </Card>
+                  </div>
+                </>
+              ) : (
+                <div className="flex-grow flex flex-col items-center justify-center text-center p-4">
+                   <div className="flex items-center justify-center w-24 h-24 rounded-full bg-primary/5 my-6 shadow-sm">
+                      <CalendarIcon className="h-12 w-12 text-primary/40" />
+                   </div>
+                   <h2 className="text-3xl font-bold text-foreground">No Calendars Yet</h2>
+                   <p className="mt-2 text-lg text-muted-foreground max-w-md">
+                     Projects use calendars to organize different planning periods. Create your first one to get started.
+                   </p>
+                   <Button size="lg" className="mt-8 shadow-lg" onClick={() => setCreateCalendarOpen(true)}>
+                      <Plus className="mr-2 h-5 w-5" />
+                      Create Your First Calendar
+                   </Button>
+                </div>
+              )}
             </div>
           )}
         </main>
       </SidebarInset>
       <RemindersModal isOpen={isRemindersOpen} onClose={() => setRemindersOpen(false)} />
+
+      <Dialog open={isCreateCalendarOpen} onOpenChange={setCreateCalendarOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Create Your First Calendar</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+                <Label htmlFor='first-calendar-name'>Calendar Name</Label>
+                <Input 
+                  id='first-calendar-name' 
+                  value={newCalendarName} 
+                  onChange={(e) => setNewCalendarName(e.target.value)} 
+                  placeholder="e.g., Q4 Content Plan"
+                  className="mt-2"
+                />
+            </div>
+            <DialogFooter>
+                <Button variant="ghost" onClick={() => setCreateCalendarOpen(false)}>Cancel</Button>
+                <Button onClick={handleCreateCalendar} disabled={!newCalendarName.trim() || loading}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Create Calendar
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   );
 }

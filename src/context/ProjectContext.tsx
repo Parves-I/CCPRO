@@ -102,7 +102,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const teammatesCollectionRef = collection(db, 'teammates');
   const accountsCollectionRef = collection(db, 'accounts');
 
-  // Centralized logging function
   const addChangeLogEntry = React.useCallback((message: string) => {
     setChangeLog(prev => [...prev, message]);
   }, []);
@@ -116,8 +115,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-
-  // Initial data fetch and listeners setup
   React.useEffect(() => {
     setInitializing(true);
     const lastUsedTeammateId = localStorage.getItem(LAST_TEAMMATE_ID_KEY);
@@ -196,10 +193,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       unsubscribeAccounts();
       unsubscribeProjects();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Effect to handle active account change
   React.useEffect(() => {
       if (activeAccount) {
         localStorage.setItem(LAST_ACCOUNT_ID_KEY, activeAccount.id);
@@ -211,11 +206,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           localStorage.removeItem(LAST_ACCOUNT_ID_KEY);
           setActiveProject(null);
       }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAccount, projects]);
 
-
-  // Effect to fetch project data when active project changes
   React.useEffect(() => {
     if (activeProject && activeAccount) {
       setLoading(true);
@@ -223,21 +215,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
       if (data) {
         let projectData = {...data};
-         if (!projectData.calendars || projectData.calendars.length === 0) {
-            const newCalendar: Calendar = {
-              id: nanoid(),
-              name: 'Main Calendar',
-              startDate: '',
-              endDate: '',
-              calendarData: {},
-            };
-            projectData.calendars = [newCalendar];
-            projectData.activeCalendarId = newCalendar.id;
-          }
+        if (!projectData.calendars) {
+          projectData.calendars = [];
+        }
         setActiveProjectData(projectData);
-        const calendarToActivate = projectData.calendars.find(c => c.id === projectData.activeCalendarId) || projectData.calendars[0];
+        const calendarToActivate = projectData.calendars.find(c => c.id === projectData.activeCalendarId) || (projectData.calendars.length > 0 ? projectData.calendars[0] : null);
         setActiveCalendar(calendarToActivate);
-
       } else {
          setActiveProjectData(null);
          setActiveCalendar(null);
@@ -359,17 +342,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (!name.trim()) return;
     setLoading(true);
     try {
-       const newCalendar: Calendar = {
-        id: nanoid(),
-        name: 'Main Calendar',
-        startDate: '',
-        endDate: '',
-        calendarData: {},
-      };
       const initialData: Omit<ProjectData, 'name' | 'lastModified'> & { name: string, lastModified: any } = {
         name,
-        calendars: [newCalendar],
-        activeCalendarId: newCalendar.id,
+        calendars: [],
+        activeCalendarId: null,
         lastModified: serverTimestamp(),
       };
       const projectCollectionRef = collection(db, 'accounts', accountId, 'projects');
@@ -483,14 +459,15 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }
 
   const deleteCalendar = (calendarId: string) => {
-    if (!activeProjectData || activeProjectData.calendars.length <= 1) {
-      toast({ title: 'Cannot Delete', description: 'A project must have at least one calendar.', variant: 'destructive'});
-      return;
-    }
+    if (!activeProjectData) return;
 
     const calendarName = activeProjectData.calendars.find(c => c.id === calendarId)?.name || '';
     const updatedCalendars = activeProjectData.calendars.filter(c => c.id !== calendarId);
-    const newActiveCalendarId = activeProjectData.activeCalendarId === calendarId ? updatedCalendars[0].id : activeProjectData.activeCalendarId;
+    
+    let newActiveCalendarId = activeProjectData.activeCalendarId;
+    if (activeProjectData.activeCalendarId === calendarId) {
+      newActiveCalendarId = updatedCalendars.length > 0 ? updatedCalendars[0].id : null;
+    }
     
     setActiveProjectData(prev => prev ? { ...prev, calendars: updatedCalendars, activeCalendarId: newActiveCalendarId } : null);
     setActiveCalendar(updatedCalendars.find(c => c.id === newActiveCalendarId) || null);
@@ -564,14 +541,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
     setLoading(true);
     
-    // We omit `lastModified` because the server will set it.
     const { lastModified, ...dataToSave } = activeProjectData;
 
     try {
       const result = await saveProjectAndLog(activeAccount.id, activeProject.id, dataToSave, changeLog, activeTeammate.name);
 
       if (result.success) {
-        setChangeLog([]); // Clear log after successful save
+        setChangeLog([]);
         toast({ title: 'Project Saved!', description: 'Your changes have been saved to the cloud.' });
       } else {
         toast({ title: 'Error', description: result.message, variant: 'destructive' });
@@ -594,7 +570,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         return;
     }
     const calendarData = data.calendarData || {};
-    // Sanitize imported data to make sure it includes the status field
     for (const key in calendarData) {
         const post = calendarData[key];
         if (!post.status) {
@@ -653,7 +628,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const postToMove = calendar.calendarData[sourceDate];
     if (!postToMove) return;
 
-    // Clear missed reason and set to planned
     if (postToMove.missedReason) {
       delete postToMove.missedReason;
     }
