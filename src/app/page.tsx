@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { CalendarIcon, Loader2, User, Bell, Users } from 'lucide-react';
+import { CalendarIcon, Loader2, Bell, Users } from 'lucide-react';
 import {
   Sidebar,
   SidebarHeader,

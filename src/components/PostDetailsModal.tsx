@@ -135,7 +135,7 @@ export function PostDetailsModal({ isOpen, onClose, date, post }: PostDetailsMod
       updatePost(date, newPost, isNew);
   
       toast({ title: "Post Saved", description: "Remember to save the project to persist changes."});
-      // We no longer call onClose() here to keep the modal open as requested.
+      onClose(); // Automatically close the modal after saving
     };
   
     const handleDelete = () => {
