@@ -1,3 +1,4 @@
+
 'use client';
 import * as React from 'react';
 import {
@@ -59,11 +60,9 @@ export function PostDetailsModal({ isOpen, onClose, date, post }: PostDetailsMod
     const [otherPlatformName, setOtherPlatformName] = React.useState('');
     const [selectedColor, setSelectedColor] = React.useState(THEME_COLORS[0]);
     const [status, setStatus] = React.useState<PostStatus>('Planned');
-    const [isModalOpenInternal, setIsModalOpenInternal] = React.useState(isOpen);
   
     React.useEffect(() => {
       if (isOpen) {
-        setIsModalOpenInternal(true);
         setTitle(post?.title || '');
         setNotes(post?.notes || '');
         setSelectedTypes(new Set(post?.types || []));
@@ -82,14 +81,6 @@ export function PostDetailsModal({ isOpen, onClose, date, post }: PostDetailsMod
       }
     }, [isOpen, post]);
 
-    const handleClose = () => {
-        setIsModalOpenInternal(false);
-        // Delay the actual closing to allow for animations
-        setTimeout(() => {
-            onClose();
-        }, 300);
-    };
-  
     const handleTypeToggle = (type: string) => {
       setSelectedTypes(prev => {
           const newSet = new Set(prev);
@@ -141,28 +132,21 @@ export function PostDetailsModal({ isOpen, onClose, date, post }: PostDetailsMod
           status: status,
       };
       
-      const calendarGrid = document.querySelector('#calendar-grid-scroll-area');
-      const scrollPos = calendarGrid?.scrollTop || 0;
-      
       updatePost(date, newPost, isNew);
-      
-      requestAnimationFrame(() => {
-        calendarGrid?.scrollTo(0, scrollPos);
-      });
   
       toast({ title: "Post Saved", description: "Remember to save the project to persist changes."});
-      handleClose();
+      // We no longer call onClose() here to keep the modal open as requested.
     };
   
     const handleDelete = () => {
       deletePost(date);
       toast({ title: "Post Deleted", description: "Remember to save the project to persist changes."});
-      handleClose();
+      onClose();
     }
   
   
     return (
-      <Dialog open={isModalOpenInternal} onOpenChange={(open) => { if(!open) handleClose(); }}>
+      <Dialog open={isOpen} onOpenChange={(open) => { if(!open) onClose(); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-8">
           <DialogHeader>
             <div className="flex justify-between items-start">
@@ -276,7 +260,7 @@ export function PostDetailsModal({ isOpen, onClose, date, post }: PostDetailsMod
               </div>
           </div>
           <DialogFooter className="pt-4 border-t">
-            <Button variant="ghost" onClick={handleClose}>Cancel</Button>
+            <Button variant="ghost" onClick={onClose}>Close</Button>
             <Button onClick={handleSave} disabled={loading}>
               Save Post
             </Button>
@@ -285,4 +269,3 @@ export function PostDetailsModal({ isOpen, onClose, date, post }: PostDetailsMod
       </Dialog>
     );
   }
-  
