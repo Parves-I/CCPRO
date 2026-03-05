@@ -55,13 +55,13 @@ export default function Home() {
     // Check if it's a Firestore Timestamp or a Date object
     if (activeProject.lastModified instanceof Date) {
       date = activeProject.lastModified;
-    } else if (activeProject.lastModified && 'seconds' in activeProject.lastModified) {
-      date = new Date(activeProject.lastModified.seconds * 1000);
+    } else if (activeProject.lastModified && 'seconds' in (activeProject.lastModified as any)) {
+      date = new Date((activeProject.lastModified as any).seconds * 1000);
     } else {
         // Fallback for draft/local state
         date = new Date();
     }
-    return `Last autosaved: ${format(date, 'MMM d, h:mm:ss a')}`;
+    return `Saved: ${format(date, 'MMM d, h:mm:ss a')}`;
   }, [activeProject?.lastModified]);
 
   return (
@@ -74,7 +74,7 @@ export default function Home() {
                 CCPRO
               </h1>
               <a href="https://www.wedefinenet.com" target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:underline">
-                  Powered by We Define Net
+                  by We Define Net
               </a>
             </div>
             <div className="md:hidden">
@@ -108,16 +108,16 @@ export default function Home() {
           {initializing ? (
             <div className="flex h-full flex-col items-center justify-center">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="mt-4 text-muted-foreground">Initializing CollabCal...</p>
+              <p className="mt-4 text-muted-foreground">Starting...</p>
             </div>
           ) : !activeTeammate ? (
             <div className="flex h-full flex-col items-center justify-center text-center p-4">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-16 h-16 text-primary/50 mb-4">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m-3.74-2.228a3 3 0 0 0-4.682-2.72 8.985 8.985 0 0 0-3.74 2.228m12.162 0A9.043 9.043 0 0 1 12 18.75c-2.673 0-5.14-1-7.071-2.757M12 21a9.043 9.043 0 0 1-7.071-2.757" />
                 </svg>
-              <h1 className="text-4xl font-bold text-foreground tracking-tight">Welcome to CollabCal</h1>
+              <h1 className="text-4xl font-bold text-foreground tracking-tight">Welcome</h1>
               <p className="mt-2 text-lg text-muted-foreground max-w-xl">
-                To get started, select or create a teammate profile. This will be used for logging changes.
+                Pick who you are to start.
               </p>
                <div className="mt-6">
                   <TeammateSelector isPrimary />
@@ -129,7 +129,7 @@ export default function Home() {
                 <div className="flex items-center gap-2">
                   <Button variant="outline" onClick={() => setRemindersOpen(true)}>
                     <Bell className="mr-2 h-4 w-4" />
-                    Reminders
+                    Alerts
                   </Button>
                 </div>
               </header>
@@ -137,9 +137,9 @@ export default function Home() {
                 <div className="flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 my-6 shadow-md">
                     <Users className="h-10 w-10 text-primary" />
                 </div>
-                <h1 className="text-4xl font-bold text-foreground tracking-tight">Select an Account</h1>
+                <h1 className="text-4xl font-bold text-foreground tracking-tight">Pick an Account</h1>
                 <p className="mt-2 text-lg text-muted-foreground max-w-lg">
-                  Create a new account or select an existing one to manage your projects.
+                  Choose or add an account.
                 </p>
                  <div className="mt-6">
                     <AccountSelector />
@@ -152,7 +152,7 @@ export default function Home() {
                 <div className="flex items-center gap-2">
                   <Button variant="outline" onClick={() => setRemindersOpen(true)}>
                     <Bell className="mr-2 h-4 w-4" />
-                    Reminders
+                    Alerts
                   </Button>
                   <AccountSelector />
                 </div>
@@ -174,9 +174,9 @@ export default function Home() {
                     />
                   </svg>
                 </div>
-                <h1 className="text-4xl font-bold text-foreground tracking-tight">Select a Project</h1>
+                <h1 className="text-4xl font-bold text-foreground tracking-tight">Pick a Project</h1>
                 <p className="mt-2 text-lg text-muted-foreground max-w-lg">
-                  Create a new project or select an existing one from the sidebar to get started.
+                  Choose a project from the side.
                 </p>
               </div>
             </div>
@@ -196,7 +196,7 @@ export default function Home() {
                   {loading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
                    <Button variant="outline" onClick={() => setRemindersOpen(true)}>
                       <Bell className="mr-2 h-4 w-4" />
-                      Reminders
+                      Alerts
                     </Button>
                   <AccountSelector />
                 </div>
@@ -215,9 +215,9 @@ export default function Home() {
                       ) : (
                         <div className="text-center py-20 h-full flex flex-col items-center justify-center">
                           <CalendarIcon className="mx-auto h-16 w-16 text-muted-foreground/30" strokeWidth="1" />
-                          <h3 className="mt-4 text-xl font-medium text-foreground">Your Calendar Awaits</h3>
+                          <h3 className="mt-4 text-xl font-medium text-foreground">Set Dates</h3>
                           <p className="mt-1 text-md text-muted-foreground">
-                            Select a start and end date in the controls above to begin planning your content.
+                            Pick a start and end date above.
                           </p>
                         </div>
                       )}
@@ -229,13 +229,13 @@ export default function Home() {
                    <div className="flex items-center justify-center w-24 h-24 rounded-full bg-primary/5 my-6 shadow-sm">
                       <CalendarIcon className="h-12 w-12 text-primary/40" />
                    </div>
-                   <h2 className="text-3xl font-bold text-foreground">No Calendars Yet</h2>
+                   <h2 className="text-3xl font-bold text-foreground">No Calendars</h2>
                    <p className="mt-2 text-lg text-muted-foreground max-w-md">
-                     Projects use calendars to organize different planning periods. Create your first one to get started.
+                     Add a calendar to start.
                    </p>
                    <Button size="lg" className="mt-8 shadow-lg" onClick={() => setCreateCalendarOpen(true)}>
                       <Plus className="mr-2 h-5 w-5" />
-                      Create Your First Calendar
+                      Add First Calendar
                    </Button>
                 </div>
               )}
@@ -256,15 +256,15 @@ export default function Home() {
       <Dialog open={isCreateCalendarOpen} onOpenChange={setCreateCalendarOpen}>
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Create Your First Calendar</DialogTitle>
+                <DialogTitle>Add Calendar</DialogTitle>
             </DialogHeader>
             <div className="py-4">
-                <Label htmlFor='first-calendar-name'>Calendar Name</Label>
+                <Label htmlFor='first-calendar-name'>Name</Label>
                 <Input 
                   id='first-calendar-name' 
                   value={newCalendarName} 
                   onChange={(e) => setNewCalendarName(e.target.value)} 
-                  placeholder="e.g., Q4 Content Plan"
+                  placeholder="e.g., Q4 Plan"
                   className="mt-2"
                 />
             </div>
@@ -272,7 +272,7 @@ export default function Home() {
                 <Button variant="ghost" onClick={() => setCreateCalendarOpen(false)}>Cancel</Button>
                 <Button onClick={handleCreateCalendar} disabled={!newCalendarName.trim() || loading}>
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Create Calendar
+                    Add
                 </Button>
             </DialogFooter>
         </DialogContent>

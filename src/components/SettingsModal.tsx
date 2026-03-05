@@ -23,10 +23,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-2xl">
             <Settings className="h-6 w-6" />
-            Application Settings
+            Settings
           </DialogTitle>
           <DialogDescription>
-            Manage your teammate profile.
+            Manage your user profile.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
@@ -35,10 +35,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
                 <p className="text-base font-medium">
-                  Switch Teammate
+                  Switch User
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Log in as a different teammate.
+                  Pick a different user.
                 </p>
               </div>
               <TeammateSelector />

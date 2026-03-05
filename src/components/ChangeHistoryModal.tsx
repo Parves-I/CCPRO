@@ -64,10 +64,10 @@ export function ChangeHistoryModal({ isOpen, onClose }: ChangeHistoryModalProps)
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-2xl">
                         <History className="h-6 w-6" />
-                        Change History for {activeProject?.name}
+                        History for {activeProject?.name}
                     </DialogTitle>
                     <DialogDescription>
-                        A log of the last 50 saved changes for this project.
+                        Last 50 saves.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="flex-grow overflow-hidden -mx-6 px-6">
@@ -102,9 +102,9 @@ export function ChangeHistoryModal({ isOpen, onClose }: ChangeHistoryModalProps)
                             ) : (
                                 <div className="text-center py-12">
                                     <History className="mx-auto h-12 w-12 text-muted-foreground/30" strokeWidth="1" />
-                                    <h3 className="mt-4 text-lg font-medium text-foreground">No History Found</h3>
+                                    <h3 className="mt-4 text-lg font-medium text-foreground">No History</h3>
                                     <p className="mt-1 text-sm text-muted-foreground">
-                                        Once you save the project, the changes will be logged here.
+                                        Save the project to see logs here.
                                     </p>
                                 </div>
                             )}

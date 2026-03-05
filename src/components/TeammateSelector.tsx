@@ -48,7 +48,7 @@ export function TeammateSelector({ isPrimary = false }: TeammateSelectorProps) {
 
     const handleCreate = () => {
         if(!newName.trim()) {
-            toast({ title: 'Error', description: 'Teammate name cannot be empty.', variant: 'destructive'});
+            toast({ title: 'Error', description: 'Name required.', variant: 'destructive'});
             return;
         }
         createTeammate(newName.trim());
@@ -58,7 +58,7 @@ export function TeammateSelector({ isPrimary = false }: TeammateSelectorProps) {
     
     const handleRename = () => {
         if (!teammateToEdit || !newName.trim()) {
-            toast({ title: 'Error', description: 'Teammate name cannot be empty.', variant: 'destructive'});
+            toast({ title: 'Error', description: 'Name required.', variant: 'destructive'});
             return;
         }
         renameTeammate(teammateToEdit.id, newName.trim());
@@ -68,7 +68,7 @@ export function TeammateSelector({ isPrimary = false }: TeammateSelectorProps) {
 
     const handleDelete = () => {
         if (deletePassword !== 'MonkXWdn@2025') {
-            toast({ title: 'Error', description: 'Incorrect password.', variant: 'destructive'});
+            toast({ title: 'Error', description: 'Wrong password.', variant: 'destructive'});
             return;
         }
         if (activeTeammate) {
@@ -82,23 +82,23 @@ export function TeammateSelector({ isPrimary = false }: TeammateSelectorProps) {
         return (
             <>
                  <Button onClick={() => setCreateOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" /> Create Teammate Profile
+                    <Plus className="mr-2 h-4 w-4" /> Add User Profile
                 </Button>
                 <Dialog open={isCreateOpen} onOpenChange={setCreateOpen}>
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle>Create Your First Teammate Profile</DialogTitle>
+                            <DialogTitle>Add User Profile</DialogTitle>
                             <DialogDescription>
-                                Teammate profiles are used to track who made changes to projects.
+                                Set who is making changes.
                             </DialogDescription>
                         </DialogHeader>
                         <div>
-                            <Label htmlFor='new-teammate-name'>Teammate Name</Label>
+                            <Label htmlFor='new-teammate-name'>Name</Label>
                             <Input id='new-teammate-name' value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g., Jane Doe"/>
                         </div>
                         <DialogFooter>
                             <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancel</Button>
-                            <Button onClick={handleCreate} disabled={loading}>{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Create</Button>
+                            <Button onClick={handleCreate} disabled={loading}>{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Add</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
@@ -116,7 +116,7 @@ export function TeammateSelector({ isPrimary = false }: TeammateSelectorProps) {
                     className="w-[200px] justify-between"
                 >
                     <User className="mr-2 h-4 w-4 shrink-0" />
-                    {activeTeammate ? activeTeammate.name : "Select Teammate"}
+                    {activeTeammate ? activeTeammate.name : "Pick User"}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
                 </DropdownMenuTrigger>
@@ -140,13 +140,13 @@ export function TeammateSelector({ isPrimary = false }: TeammateSelectorProps) {
                     ))}
                     <DropdownMenuSeparator />
                      <DropdownMenuItem onSelect={() => setCreateOpen(true)}>
-                        <Plus className="mr-2 h-4 w-4" /> Create New Teammate
+                        <Plus className="mr-2 h-4 w-4" /> Add New User
                     </DropdownMenuItem>
                     
                     <DropdownMenuSub>
                         <DropdownMenuSubTrigger>
                             <Edit className="mr-2 h-4 w-4" />
-                            Rename Teammate
+                            Rename User
                         </DropdownMenuSubTrigger>
                         <DropdownMenuPortal>
                              <DropdownMenuSubContent>
@@ -161,7 +161,7 @@ export function TeammateSelector({ isPrimary = false }: TeammateSelectorProps) {
 
                     <DropdownMenuItem onSelect={() => setDeleteOpen(true)} className="text-destructive focus:text-destructive" disabled={!activeTeammate}>
                         <Trash2 className="mr-2 h-4 w-4" />
-                        Delete Current Teammate
+                        Delete User
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
@@ -170,15 +170,15 @@ export function TeammateSelector({ isPrimary = false }: TeammateSelectorProps) {
             <Dialog open={isCreateOpen} onOpenChange={setCreateOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Create New Teammate</DialogTitle>
+                        <DialogTitle>Add New User</DialogTitle>
                     </DialogHeader>
                     <div>
-                        <Label htmlFor='new-teammate-name-dialog'>Teammate Name</Label>
+                        <Label htmlFor='new-teammate-name-dialog'>Name</Label>
                         <Input id='new-teammate-name-dialog' value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g., John Doe"/>
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancel</Button>
-                        <Button onClick={handleCreate} disabled={loading}>{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Create Teammate</Button>
+                        <Button onClick={handleCreate} disabled={loading}>{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Add</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -187,15 +187,15 @@ export function TeammateSelector({ isPrimary = false }: TeammateSelectorProps) {
             <Dialog open={isEditOpen} onOpenChange={(open) => { setEditOpen(open); if(!open) setTeammateToEdit(null); }}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Rename Teammate &quot;{teammateToEdit?.name}&quot;</DialogTitle>
+                        <DialogTitle>Rename User &quot;{teammateToEdit?.name}&quot;</DialogTitle>
                     </DialogHeader>
                     <div>
-                        <Label htmlFor='rename-teammate-name'>New Teammate Name</Label>
+                        <Label htmlFor='rename-teammate-name'>New Name</Label>
                         <Input id='rename-teammate-name' value={newName} onChange={(e) => setNewName(e.target.value)} />
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => { setEditOpen(false); setTeammateToEdit(null);}}>Cancel</Button>
-                        <Button onClick={handleRename} disabled={loading}>{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save Changes</Button>
+                        <Button onClick={handleRename} disabled={loading}>{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Update</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -204,9 +204,9 @@ export function TeammateSelector({ isPrimary = false }: TeammateSelectorProps) {
             <AlertDialog open={isDeleteOpen} onOpenChange={setDeleteOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure you want to delete this teammate profile?</AlertDialogTitle>
+                        <AlertDialogTitle>Delete user profile?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will permanently delete the "{activeTeammate?.name}" profile. This action cannot be undone. Please enter the password to confirm.
+                            This will delete "{activeTeammate?.name}". Type password to confirm.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <div>
