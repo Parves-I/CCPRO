@@ -184,9 +184,9 @@ export function CalendarControls() {
                 </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button onClick={saveProjectToDb} disabled={loading || !activeCalendar} title="Save project to cloud">
+            <Button onClick={saveProjectToDb} disabled={loading || !activeCalendar} title="Explicitly log changes to history">
                 {loading ? <Loader2 className='h-4 w-4 animate-spin' /> : <Save className="h-4 w-4" />}
-                <span className="sr-only sm:not-sr-only sm:ml-2">Save</span>
+                <span className="sr-only sm:not-sr-only sm:ml-2">Log Changes</span>
             </Button>
         </div>
       </div>

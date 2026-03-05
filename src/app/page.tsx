@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { CalendarIcon, Loader2, Bell, Users, Plus } from 'lucide-react';
+import { CalendarIcon, Loader2, Bell, Users, Plus, CheckCircle2 } from 'lucide-react';
 import {
   Sidebar,
   SidebarHeader,
@@ -24,6 +24,7 @@ import { AccountSelector } from '@/components/AccountSelector';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { format } from 'date-fns';
 
 export default function Home() {
   const { 
@@ -47,6 +48,17 @@ export default function Home() {
     setNewCalendarName('');
     setCreateCalendarOpen(false);
   }
+
+  const lastSavedText = React.useMemo(() => {
+    if (!activeProject?.lastModified) return null;
+    let date: Date;
+    if (activeProject.lastModified instanceof Date) {
+      date = activeProject.lastModified;
+    } else {
+      date = new Date(activeProject.lastModified.seconds * 1000);
+    }
+    return `Last autosaved: ${format(date, 'MMM d, h:mm:ss a')}`;
+  }, [activeProject?.lastModified]);
 
   return (
     <SidebarProvider>
@@ -87,14 +99,14 @@ export default function Home() {
           <ProjectSidebar />
         </SidebarContent>
       </Sidebar>
-      <SidebarInset className="bg-body-background">
+      <SidebarInset className="bg-body-background relative">
         <main className="min-h-screen max-h-screen flex flex-col">
           {initializing ? (
             <div className="flex h-full flex-col items-center justify-center">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
               <p className="mt-4 text-muted-foreground">Initializing CollabCal...</p>
             </div>
-          ) : teammates.length === 0 || !activeTeammate ? (
+          ) : !activeTeammate ? (
             <div className="flex h-full flex-col items-center justify-center text-center p-4">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-16 h-16 text-primary/50 mb-4">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m-3.74-2.228a3 3 0 0 0-4.682-2.72 8.985 8.985 0 0 0-3.74 2.228m12.162 0A9.043 9.043 0 0 1 12 18.75c-2.673 0-5.14-1-7.071-2.757M12 21a9.043 9.043 0 0 1-7.071-2.757" />
@@ -226,6 +238,14 @@ export default function Home() {
             </div>
           )}
         </main>
+        
+        {/* Autosave Indicator */}
+        {activeProject && lastSavedText && (
+          <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 bg-background/80 backdrop-blur-sm border px-3 py-1.5 rounded-full shadow-sm text-xs text-muted-foreground transition-all duration-300">
+            <CheckCircle2 className="h-3 w-3 text-green-500" />
+            <span>{lastSavedText}</span>
+          </div>
+        )}
       </SidebarInset>
       <RemindersModal isOpen={isRemindersOpen} onClose={() => setRemindersOpen(false)} />
 

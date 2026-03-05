@@ -232,6 +232,20 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   }, [activeProject, activeAccount, allProjectData]);
 
+  // Helper function to persist activeProjectData to Firestore (Autosave)
+  const persistActiveProjectData = async (updatedData: ProjectData) => {
+    if (!activeProject || !activeAccount) return;
+    const projectRef = doc(db, 'accounts', activeAccount.id, 'projects', activeProject.id);
+    try {
+      await updateDoc(projectRef, {
+        ...updatedData,
+        lastModified: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Autosave error:', error);
+    }
+  };
+
   const createTeammate = async (name: string) => {
     if (!name.trim()) return;
     setLoading(true);
@@ -423,7 +437,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const newActiveCalendar = activeProjectData.calendars.find(c => c.id === calendarId);
     if (newActiveCalendar) {
       setActiveCalendar(newActiveCalendar);
-      setActiveProjectData(prev => prev ? { ...prev, activeCalendarId: calendarId } : null);
+      const updatedData = { ...activeProjectData, activeCalendarId: calendarId };
+      setActiveProjectData(updatedData);
+      persistActiveProjectData(updatedData);
       addChangeLogEntry(`Switched to calendar "${newActiveCalendar.name}"`);
     }
   };
@@ -438,10 +454,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       calendarData: {},
     };
     const updatedCalendars = [...activeProjectData.calendars, newCalendar];
-    setActiveProjectData(prev => prev ? { ...prev, calendars: updatedCalendars, activeCalendarId: newCalendar.id } : null);
+    const updatedData = { ...activeProjectData, calendars: updatedCalendars, activeCalendarId: newCalendar.id };
+    setActiveProjectData(updatedData);
     setActiveCalendar(newCalendar);
+    persistActiveProjectData(updatedData);
     addChangeLogEntry(`Created new calendar "${name}"`);
-    toast({ title: 'Calendar Created', description: `"${name}" has been added. Save project to persist.` });
+    toast({ title: 'Calendar Created', description: `"${name}" has been added.` });
   };
 
   const renameCalendar = (calendarId: string, newName: string) => {
@@ -450,12 +468,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const updatedCalendars = activeProjectData.calendars.map(c => 
       c.id === calendarId ? { ...c, name: newName } : c
     );
-    setActiveProjectData(prev => prev ? { ...prev, calendars: updatedCalendars } : null);
+    const updatedData = { ...activeProjectData, calendars: updatedCalendars };
+    setActiveProjectData(updatedData);
     if(activeCalendar?.id === calendarId) {
       setActiveCalendar(prev => prev ? {...prev, name: newName} : null);
     }
+    persistActiveProjectData(updatedData);
     addChangeLogEntry(`Renamed calendar from "${originalName}" to "${newName}"`);
-    toast({ title: 'Calendar Renamed', description: 'Save project to persist changes.' });
+    toast({ title: 'Calendar Renamed' });
   }
 
   const deleteCalendar = (calendarId: string) => {
@@ -469,25 +489,27 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       newActiveCalendarId = updatedCalendars.length > 0 ? updatedCalendars[0].id : null;
     }
     
-    setActiveProjectData(prev => prev ? { ...prev, calendars: updatedCalendars, activeCalendarId: newActiveCalendarId } : null);
+    const updatedData = { ...activeProjectData, calendars: updatedCalendars, activeCalendarId: newActiveCalendarId };
+    setActiveProjectData(updatedData);
     setActiveCalendar(updatedCalendars.find(c => c.id === newActiveCalendarId) || null);
+    persistActiveProjectData(updatedData);
     addChangeLogEntry(`Deleted calendar "${calendarName}"`);
-    toast({ title: 'Calendar Deleted', description: 'Save project to persist changes.' });
+    toast({ title: 'Calendar Deleted' });
   }
 
   const updateActiveCalendar = (data: Partial<Calendar>) => {
+    if (!activeProjectData || !activeCalendar) return;
+    const updatedCalendars = activeProjectData.calendars.map(c => 
+      c.id === activeCalendar.id ? { ...c, ...data } : c
+    );
+    const updatedData = { ...activeProjectData, calendars: updatedCalendars };
     setActiveCalendar(prev => (prev ? { ...prev, ...data } : null));
-    setActiveProjectData(prevData => {
-      if (!prevData || !activeCalendar) return null;
-      const updatedCalendars = prevData.calendars.map(c => 
-        c.id === activeCalendar.id ? { ...c, ...data } : c
-      );
-      return { ...prevData, calendars: updatedCalendars };
-    });
+    setActiveProjectData(updatedData);
+    persistActiveProjectData(updatedData);
   };
 
   const updatePost = (date: string, post: Post, isNew: boolean) => {
-    if (!activeCalendar) return;
+    if (!activeCalendar || !activeProjectData) return;
 
     if (isNew) {
         addChangeLogEntry(`Created post "${post.title}" on ${format(new Date(date), 'MM/dd/yyyy')}`);
@@ -544,19 +566,20 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const { lastModified, ...dataToSave } = activeProjectData;
 
     try {
+      // Manual save button now primarily triggers a log entry with current state
       const result = await saveProjectAndLog(activeAccount.id, activeProject.id, dataToSave, changeLog, activeTeammate.name);
 
       if (result.success) {
         setChangeLog([]);
-        toast({ title: 'Project Saved!', description: 'Your changes have been saved to the cloud.' });
+        toast({ title: 'Changes Logged', description: 'Your progress has been explicitly logged to the history.' });
       } else {
         toast({ title: 'Error', description: result.message, variant: 'destructive' });
       }
     } catch (error) {
-      console.error('Error saving project:', error);
+      console.error('Error logging project:', error);
       toast({
         title: 'Error',
-        description: (error as Error).message || 'Failed to save project.',
+        description: (error as Error).message || 'Failed to log project changes.',
         variant: 'destructive',
       });
     } finally {
@@ -584,7 +607,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       calendarData: calendarData,
     });
     addChangeLogEntry(`Imported data into calendar "${activeCalendar.name}"`);
-    toast({ title: 'Import Successful', description: 'Data has been loaded. Click "Save" to persist.' });
+    toast({ title: 'Import Successful' });
   }
 
   const getProjectById = (projectId: string) => {
